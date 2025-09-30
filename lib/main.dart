@@ -86,7 +86,6 @@ class AppLocalizations {
       'select_exercises': '運動を選択',
       'add_exercise': '運動を追加',
       'save_routine': 'ルーティンを保存',
-      'cancel': 'キャンセル',
       'search_exercises': '運動を検索...',
     },
     '한국어': {
@@ -167,7 +166,6 @@ class AppLocalizations {
       'select_exercises': '운동 선택',
       'add_exercise': '운동 추가',
       'save_routine': '루틴 저장',
-      'cancel': '취소',
       'search_exercises': '운동 검색...',
     },
     'English': {
@@ -248,7 +246,6 @@ class AppLocalizations {
       'select_exercises': 'Select Exercises',
       'add_exercise': 'Add Exercise',
       'save_routine': 'Save Routine',
-      'cancel': 'Cancel',
       'search_exercises': 'Search exercises...',
     },
   };
@@ -1567,7 +1564,7 @@ class RoutineScreen extends StatefulWidget {
 class _RoutineScreenState extends State<RoutineScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<String> _favoriteExercises = [];
-  List<String> _routines = [];
+  List<Map<String, dynamic>> _routines = []; // 루틴 이름과 운동 목록을 저장
   List<String> _allExercises = [
     'squat',
     'push_up',
@@ -1617,14 +1614,20 @@ class _RoutineScreenState extends State<RoutineScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _favoriteExercises = prefs.getStringList('favorite_exercises') ?? [];
-      _routines = prefs.getStringList('user_routines') ?? [];
+      final routinesJson = prefs.getStringList('user_routines') ?? [];
+      _routines = routinesJson
+          .map((routine) => jsonDecode(routine) as Map<String, dynamic>)
+          .toList();
     });
   }
 
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('favorite_exercises', _favoriteExercises);
-    await prefs.setStringList('user_routines', _routines);
+    final routinesJson = _routines
+        .map((routine) => jsonEncode(routine))
+        .toList();
+    await prefs.setStringList('user_routines', routinesJson);
   }
 
   void _toggleFavorite(String exercise) {
@@ -1645,34 +1648,51 @@ class _RoutineScreenState extends State<RoutineScreen> {
           ? const Color(0xFF121212)
           : const Color(0xFFF8F9FA),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 검색바
-              _buildSearchBar(),
+        child: Column(
+          children: [
+            // 검색바
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildSearchBar(),
+            ),
 
-              const SizedBox(height: 24),
+            // 스크롤 가능한 컨텐츠
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 검색 결과 또는 즐겨찾기 섹션
+                    if (_showSearchResults)
+                      _buildSearchResults()
+                    else
+                      _buildFavoritesSection(),
 
-              // 검색 결과 또는 즐겨찾기 섹션
-              if (_showSearchResults)
-                _buildSearchResults()
-              else
-                _buildFavoritesSection(),
+                    const SizedBox(height: 32),
 
-              const SizedBox(height: 32),
+                    // 루틴 섹션
+                    _buildRoutineSection(),
 
-              // 루틴 섹션
-              _buildRoutineSection(),
-            ],
-          ),
+                    const SizedBox(height: 100), // FAB을 위한 여백
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateRoutineDialog,
-        backgroundColor: Colors.blue[600],
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: const Color(0xFF87CEEB),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: Text(
+          AppLocalizations.getText('create_routine', widget.language),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -1743,50 +1763,129 @@ class _RoutineScreenState extends State<RoutineScreen> {
             color: widget.isDarkMode ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _filteredExercises.length,
-          itemBuilder: (context, index) {
-            return _buildSearchResultCard(_filteredExercises[index]);
-          },
+        const SizedBox(height: 8),
+        Text(
+          '${_filteredExercises.length}개의 운동을 찾았습니다',
+          style: TextStyle(
+            fontSize: 14,
+            color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
         ),
+        const SizedBox(height: 16),
+        if (_filteredExercises.isEmpty)
+          Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.search_off,
+                  size: 48,
+                  color: widget.isDarkMode
+                      ? Colors.grey[600]
+                      : Colors.grey[400],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '검색 결과가 없습니다',
+                  style: TextStyle(
+                    color: widget.isDarkMode
+                        ? Colors.grey[400]
+                        : Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _filteredExercises.length,
+            itemBuilder: (context, index) {
+              return _buildSearchResultCard(_filteredExercises[index]);
+            },
+          ),
       ],
     );
   }
 
   Widget _buildSearchResultCard(String exerciseKey) {
     final isFavorite = _favoriteExercises.contains(exerciseKey);
+
+    // 운동별 아이콘 매핑
+    final iconMap = {
+      'squat': Icons.accessibility_new,
+      'push_up': Icons.fitness_center,
+      'plank': Icons.airline_seat_flat,
+      'lunges': Icons.directions_walk,
+      'burpees': Icons.speed,
+      'mountain_climber': Icons.terrain,
+    };
+
+    // 운동별 색상 매핑
+    final colorMap = {
+      'squat': Colors.purple,
+      'push_up': Colors.blue,
+      'plank': Colors.orange,
+      'lunges': Colors.green,
+      'burpees': Colors.red,
+      'mountain_climber': Colors.teal,
+    };
+
+    final icon = iconMap[exerciseKey] ?? Icons.fitness_center;
+    final color = colorMap[exerciseKey] ?? Colors.blue;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? Colors.grey[700] : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: widget.isDarkMode ? Colors.grey[600]! : Colors.grey[300]!,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withOpacity(0.1), color.withOpacity(0.2)],
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            AppLocalizations.getText(exerciseKey, widget.language),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: widget.isDarkMode ? Colors.white : Colors.black87,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _toggleFavorite(exerciseKey),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    AppLocalizations.getText(exerciseKey, widget.language),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: widget.isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _toggleFavorite(exerciseKey),
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : color,
+                    size: 28,
+                  ),
+                ),
+              ],
             ),
           ),
-          IconButton(
-            onPressed: () => _toggleFavorite(exerciseKey),
-            icon: Icon(
-              isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? Colors.red : Colors.grey,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1820,10 +1919,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 1.5,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+              crossAxisCount: 2,
+              childAspectRatio: 1.2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
             ),
             itemCount: _favoriteExercises.length,
             itemBuilder: (context, index) {
@@ -1835,20 +1934,60 @@ class _RoutineScreenState extends State<RoutineScreen> {
   }
 
   Widget _buildFavoriteCard(String exerciseKey) {
+    // 운동별 아이콘 매핑
+    final iconMap = {
+      'squat': Icons.accessibility_new,
+      'push_up': Icons.fitness_center,
+      'plank': Icons.airline_seat_flat,
+      'lunges': Icons.directions_walk,
+      'burpees': Icons.speed,
+      'mountain_climber': Icons.terrain,
+    };
+
+    // 운동별 색상 매핑
+    final colorMap = {
+      'squat': Colors.purple,
+      'push_up': Colors.blue,
+      'plank': Colors.orange,
+      'lunges': Colors.green,
+      'burpees': Colors.red,
+      'mountain_climber': Colors.teal,
+    };
+
+    final icon = iconMap[exerciseKey] ?? Icons.fitness_center;
+    final color = colorMap[exerciseKey] ?? Colors.blue;
+
     return Container(
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? Colors.grey[700] : Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Text(
-          AppLocalizations.getText(exerciseKey, widget.language),
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: widget.isDarkMode ? Colors.white : Colors.black87,
-          ),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withOpacity(0.7), color.withOpacity(0.9)],
         ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            AppLocalizations.getText(exerciseKey, widget.language),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2002,7 +2141,11 @@ class _RoutineScreenState extends State<RoutineScreen> {
                     if (nameController.text.isNotEmpty &&
                         selectedExercises.isNotEmpty) {
                       setState(() {
-                        _routines.add(nameController.text);
+                        _routines.add({
+                          'name': nameController.text,
+                          'exercises': selectedExercises,
+                          'createdAt': DateTime.now().toIso8601String(),
+                        });
                       });
                       _saveData();
                       Navigator.of(context).pop();
@@ -2021,21 +2164,168 @@ class _RoutineScreenState extends State<RoutineScreen> {
     );
   }
 
-  Widget _buildRoutineCard(String routineKey) {
+  Widget _buildRoutineCard(Map<String, dynamic> routine) {
+    final routineName = routine['name'] as String;
+    final exercises = (routine['exercises'] as List<dynamic>).cast<String>();
+
+    // 루틴 인덱스에 따라 다른 색상 적용
+    final index = _routines.indexOf(routine);
+    final colors = [
+      [const Color(0xFF667EEA), const Color(0xFF764BA2)],
+      [const Color(0xFFF093FB), const Color(0xFFF5576C)],
+      [const Color(0xFF4FACFE), const Color(0xFF00F2FE)],
+      [const Color(0xFF43E97B), const Color(0xFF38F9D7)],
+      [const Color(0xFFFA709A), const Color(0xFFFEE140)],
+    ];
+
+    final colorPair = colors[index % colors.length];
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? Colors.grey[700] : Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        AppLocalizations.getText(routineKey, widget.language),
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: widget.isDarkMode ? Colors.white : Colors.black87,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colorPair,
         ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: colorPair[0].withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // 루틴 시작 로직 (나중에 구현)
+            _showRoutineDetails(routine);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.play_circle_filled,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        routineName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${exercises.length} ${AppLocalizations.getText('select_exercises', widget.language)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      setState(() {
+                        _routines.remove(routine);
+                      });
+                      _saveData();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('삭제'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRoutineDetails(Map<String, dynamic> routine) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isDarkMode ? Colors.grey[800] : Colors.white,
+        title: Text(
+          routine['name'],
+          style: TextStyle(
+            color: widget.isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '포함된 운동:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: widget.isDarkMode ? Colors.white : Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...((routine['exercises'] as List<dynamic>).cast<String>().map(
+              (exercise) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  '• ${AppLocalizations.getText(exercise, widget.language)}',
+                  style: TextStyle(
+                    color: widget.isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('닫기'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // 루틴 시작 로직
+            },
+            child: Text('시작하기'),
+          ),
+        ],
       ),
     );
   }
