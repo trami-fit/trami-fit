@@ -5,6 +5,259 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+// 언어별 번역 클래스
+class AppLocalizations {
+  static const Map<String, Map<String, String>> _translations = {
+    '日本語': {
+      'home': 'ホーム',
+      'routine': 'ルーティン',
+      'log': 'ログ',
+      'setting': '設定',
+      'start_workout': '運動を開始する',
+      'stop_workout': '運動を停止する',
+      'pause_workout': '一時停止',
+      'resume_workout': '再開',
+      'workout_time': '運動時間',
+      'next_workout': '次に運動日まで',
+      'workout_in_progress': '運動中...',
+      'workout_paused': '一時停止中...',
+      'goal_remaining': 'ゴールまであと',
+      'goal_setting': '目標設定',
+      'monthly_activity': '今月活動日数',
+      'days': '日',
+      'schedule': 'スケジュール',
+      'fixed_workout_days': '固定運動日',
+      'set_schedule': '運動予定にする',
+      'cancel_schedule': '予定解除',
+      'close': '閉じる',
+      'weight_input': '体重入力',
+      'current_weight': '現在の体重 (kg)',
+      'save': '保存',
+      'cancel': 'キャンセル',
+      'records': '記録',
+      'workout_records': '運動記録',
+      'weight_records': '体重記録',
+      'no_workout_records': '運動記録がありません',
+      'no_weight_records': '体重記録がありません',
+      'profile': 'プロフィール',
+      'app_settings': 'アプリ設定',
+      'account': 'アカウント',
+      'info': '情報',
+      'dark_mode': 'ダークモード',
+      'dark_mode_subtitle': '暗いテーマに切り替え',
+      'language': '言語',
+      'notifications': '通知設定',
+      'notification_subtitle': 'プッシュ通知の管理',
+      'privacy': 'プライバシー設定',
+      'privacy_subtitle': 'データの管理とセキュリティ',
+      'backup': 'データバックアップ',
+      'backup_subtitle': 'データの保存と復元',
+      'logout': 'ログアウト',
+      'logout_subtitle': 'アカウントからサインアウト',
+      'help': 'ヘルプとサポート',
+      'help_subtitle': 'よくある質問とサポート',
+      'version': 'バージョン',
+      'last_workout': 'ラスト運動から',
+      'create_schedule': '運動スケジュールを作成してください',
+      'skip_workout': 'スキップ',
+      'minutes': '分',
+      'seconds': '秒',
+      'edit_profile': 'プロフィール編集',
+      'user_name': 'ユーザー名',
+      'user_email': 'メールアドレス',
+      'select_language': '言語選択',
+      'korean': '한국어',
+      'japanese': '日本語',
+      'english': 'English',
+      'search_placeholder': '私の運動を見つかる!',
+      'favorites': 'お気に入り',
+      'squat': 'スクウォット',
+      'push_up': '腕立て伏せ',
+      'plank': 'プランク',
+      'lunges': 'ランジ',
+      'burpees': 'バーピー',
+      'mountain_climber': 'マウンテンクライマー',
+      'routine1': 'ルーティン1',
+      'routine2': 'ルーティン2',
+      'add_to_favorites': 'お気に入りに追加',
+      'remove_from_favorites': 'お気に入りから削除',
+      'create_routine': '新しいルーティンを作成',
+      'routine_name': 'ルーティン名',
+      'select_exercises': '運動を選択',
+      'add_exercise': '運動を追加',
+      'save_routine': 'ルーティンを保存',
+      'cancel': 'キャンセル',
+      'search_exercises': '運動を検索...',
+    },
+    '한국어': {
+      'home': '홈',
+      'routine': '루틴',
+      'log': '로그',
+      'setting': '설정',
+      'start_workout': '운동 시작',
+      'stop_workout': '운동 중지',
+      'pause_workout': '일시정지',
+      'resume_workout': '재개',
+      'workout_time': '운동 시간',
+      'next_workout': '다음 운동일까지',
+      'workout_in_progress': '운동 중...',
+      'workout_paused': '일시정지 중...',
+      'goal_remaining': '목표까지',
+      'goal_setting': '목표 설정',
+      'monthly_activity': '이번 달 활동일수',
+      'days': '일',
+      'schedule': '스케줄',
+      'fixed_workout_days': '고정 운동일',
+      'set_schedule': '운동 예정으로 설정',
+      'cancel_schedule': '예정 해제',
+      'close': '닫기',
+      'weight_input': '체중 입력',
+      'current_weight': '현재 체중 (kg)',
+      'save': '저장',
+      'cancel': '취소',
+      'records': '기록',
+      'workout_records': '운동 기록',
+      'weight_records': '체중 기록',
+      'no_workout_records': '운동 기록이 없습니다',
+      'no_weight_records': '체중 기록이 없습니다',
+      'profile': '프로필',
+      'app_settings': '앱 설정',
+      'account': '계정',
+      'info': '정보',
+      'dark_mode': '다크 모드',
+      'dark_mode_subtitle': '어두운 테마로 전환',
+      'language': '언어',
+      'notifications': '알림 설정',
+      'notification_subtitle': '푸시 알림 관리',
+      'privacy': '개인정보 설정',
+      'privacy_subtitle': '데이터 관리 및 보안',
+      'backup': '데이터 백업',
+      'backup_subtitle': '데이터 저장 및 복원',
+      'logout': '로그아웃',
+      'logout_subtitle': '계정에서 로그아웃',
+      'help': '도움말 및 지원',
+      'help_subtitle': '자주 묻는 질문 및 지원',
+      'version': '버전',
+      'last_workout': '마지막 운동부터',
+      'create_schedule': '운동 스케줄을 생성하세요',
+      'skip_workout': '건너뛰기',
+      'minutes': '분',
+      'seconds': '초',
+      'edit_profile': '프로필 편집',
+      'user_name': '사용자 이름',
+      'user_email': '이메일',
+      'select_language': '언어 선택',
+      'korean': '한국어',
+      'japanese': '일본어',
+      'english': '영어',
+      'search_placeholder': '내 운동을 찾기!',
+      'favorites': '즐겨찾기',
+      'squat': '스쿼트',
+      'push_up': '팔굽혀펴기',
+      'plank': '플랭크',
+      'lunges': '런지',
+      'burpees': '버피',
+      'mountain_climber': '마운틴 클라이머',
+      'routine1': '루틴1',
+      'routine2': '루틴2',
+      'add_to_favorites': '즐겨찾기에 추가',
+      'remove_from_favorites': '즐겨찾기에서 제거',
+      'create_routine': '새 루틴 만들기',
+      'routine_name': '루틴 이름',
+      'select_exercises': '운동 선택',
+      'add_exercise': '운동 추가',
+      'save_routine': '루틴 저장',
+      'cancel': '취소',
+      'search_exercises': '운동 검색...',
+    },
+    'English': {
+      'home': 'Home',
+      'routine': 'Routine',
+      'log': 'Log',
+      'setting': 'Setting',
+      'start_workout': 'Start Workout',
+      'stop_workout': 'Stop Workout',
+      'pause_workout': 'Pause',
+      'resume_workout': 'Resume',
+      'workout_time': 'Workout Time',
+      'next_workout': 'Until next workout',
+      'workout_in_progress': 'Workout in progress...',
+      'workout_paused': 'Workout paused...',
+      'goal_remaining': 'Goal until',
+      'goal_setting': 'Set Goal',
+      'monthly_activity': 'This month activity',
+      'days': 'days',
+      'schedule': 'Schedule',
+      'fixed_workout_days': 'Fixed Workout Days',
+      'set_schedule': 'Set Workout Schedule',
+      'cancel_schedule': 'Cancel Schedule',
+      'close': 'Close',
+      'weight_input': 'Weight Input',
+      'current_weight': 'Current Weight (kg)',
+      'save': 'Save',
+      'cancel': 'Cancel',
+      'records': 'Records',
+      'workout_records': 'Workout Records',
+      'weight_records': 'Weight Records',
+      'no_workout_records': 'No workout records',
+      'no_weight_records': 'No weight records',
+      'profile': 'Profile',
+      'app_settings': 'App Settings',
+      'account': 'Account',
+      'info': 'Info',
+      'dark_mode': 'Dark Mode',
+      'dark_mode_subtitle': 'Switch to dark theme',
+      'language': 'Language',
+      'notifications': 'Notification Settings',
+      'notification_subtitle': 'Manage push notifications',
+      'privacy': 'Privacy Settings',
+      'privacy_subtitle': 'Data management and security',
+      'backup': 'Data Backup',
+      'backup_subtitle': 'Data save and restore',
+      'logout': 'Logout',
+      'logout_subtitle': 'Sign out from account',
+      'help': 'Help & Support',
+      'help_subtitle': 'FAQ and support',
+      'version': 'Version',
+      'last_workout': 'Since last workout',
+      'create_schedule': 'Please create a workout schedule',
+      'skip_workout': 'Skip',
+      'minutes': 'min',
+      'seconds': 'sec',
+      'edit_profile': 'Edit Profile',
+      'user_name': 'User Name',
+      'user_email': 'Email',
+      'select_language': 'Select Language',
+      'korean': 'Korean',
+      'japanese': 'Japanese',
+      'english': 'English',
+      'search_placeholder': 'Find my workout!',
+      'favorites': 'Favorites',
+      'squat': 'Squat',
+      'push_up': 'Push Up',
+      'plank': 'Plank',
+      'lunges': 'Lunges',
+      'burpees': 'Burpees',
+      'mountain_climber': 'Mountain Climber',
+      'routine1': 'Routine 1',
+      'routine2': 'Routine 2',
+      'add_to_favorites': 'Add to Favorites',
+      'remove_from_favorites': 'Remove from Favorites',
+      'create_routine': 'Create New Routine',
+      'routine_name': 'Routine Name',
+      'select_exercises': 'Select Exercises',
+      'add_exercise': 'Add Exercise',
+      'save_routine': 'Save Routine',
+      'cancel': 'Cancel',
+      'search_exercises': 'Search exercises...',
+    },
+  };
+
+  static String getText(String key, String language) {
+    return _translations[language]?[key] ?? _translations['日本語']![key]!;
+  }
+}
+
 void main() {
   runApp(const TramiApp());
 }
@@ -36,26 +289,64 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  bool _isDarkMode = false;
+  String _selectedLanguage = '日本語';
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const RoutineScreen(),
-    const LogScreen(),
-    const SettingScreen(),
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isDarkMode = prefs.getBool('is_dark_mode') ?? false;
+      _selectedLanguage = prefs.getString('selected_language') ?? '日本語';
+    });
+  }
+
+  void _updateDarkMode(bool isDark) {
+    setState(() {
+      _isDarkMode = isDark;
+    });
+  }
+
+  void _updateLanguage(String language) {
+    setState(() {
+      _selectedLanguage = language;
+    });
+  }
+
+  List<Widget> get _screens => [
+    HomeScreen(isDarkMode: _isDarkMode, language: _selectedLanguage),
+    RoutineScreen(isDarkMode: _isDarkMode, language: _selectedLanguage),
+    LogScreen(isDarkMode: _isDarkMode, language: _selectedLanguage),
+    SettingScreen(
+      isDarkMode: _isDarkMode,
+      onDarkModeChanged: _updateDarkMode,
+      language: _selectedLanguage,
+      onLanguageChanged: _updateLanguage,
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _isDarkMode
+          ? const Color(0xFF121212)
+          : const Color(0xFFF8F9FA),
       body: _screens[_currentIndex],
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: _isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: _isDarkMode
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black12,
               blurRadius: 8,
-              offset: Offset(0, -2),
+              offset: const Offset(0, -2),
             ),
           ],
         ),
@@ -66,7 +357,7 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: const Color(0xFF87CEEB),
-          unselectedItemColor: Colors.grey,
+          unselectedItemColor: _isDarkMode ? Colors.grey[400] : Colors.grey,
           selectedLabelStyle: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -75,26 +366,38 @@ class _MainScreenState extends State<MainScreen> {
             fontSize: 12,
             fontWeight: FontWeight.w400,
           ),
-          items: const [
+          items: [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
-              label: 'HOME',
+              label: AppLocalizations.getText(
+                'home',
+                _selectedLanguage,
+              ).toUpperCase(),
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.fitness_center_outlined),
               activeIcon: Icon(Icons.fitness_center),
-              label: 'Routine',
+              label: AppLocalizations.getText(
+                'routine',
+                _selectedLanguage,
+              ).toUpperCase(),
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),
               activeIcon: Icon(Icons.analytics),
-              label: 'Log',
+              label: AppLocalizations.getText(
+                'log',
+                _selectedLanguage,
+              ).toUpperCase(),
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),
               activeIcon: Icon(Icons.settings),
-              label: 'Setting',
+              label: AppLocalizations.getText(
+                'setting',
+                _selectedLanguage,
+              ).toUpperCase(),
             ),
           ],
         ),
@@ -129,7 +432,14 @@ class WorkoutRecord {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isDarkMode;
+  final String language;
+
+  const HomeScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.language,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -841,7 +1151,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: widget.isDarkMode
+          ? const Color(0xFF121212)
+          : const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -969,20 +1281,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Column(
                     children: [
                       Text(
-                        _isWorkoutMode ? '運動時間' : '次に運動日まで',
-                        style: const TextStyle(
+                        _isWorkoutMode
+                            ? AppLocalizations.getText(
+                                'workout_time',
+                                widget.language,
+                              )
+                            : AppLocalizations.getText(
+                                'next_workout',
+                                widget.language,
+                              ),
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.black54,
+                          color: widget.isDarkMode
+                              ? Colors.grey[400]
+                              : Colors.black54,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         _getTimerText(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: widget.isDarkMode
+                              ? Colors.white
+                              : Colors.black87,
                           letterSpacing: 1.2,
                         ),
                       ),
@@ -1002,7 +1326,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         child: Text(
                           _isWorkoutMode
-                              ? (_isPaused ? '一時停止中...' : '運動中...')
+                              ? (_isPaused
+                                    ? AppLocalizations.getText(
+                                        'workout_paused',
+                                        widget.language,
+                                      )
+                                    : AppLocalizations.getText(
+                                        'workout_in_progress',
+                                        widget.language,
+                                      ))
                               : '8月22日 火曜日',
                           style: TextStyle(
                             fontSize: 14,
@@ -1049,9 +1381,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(25),
                       ),
                     ),
-                    child: const Text(
-                      '運動を開始する',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.getText(
+                        'start_workout',
+                        widget.language,
+                      ),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
@@ -1104,7 +1439,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                         child: Text(
-                          _isPaused ? '再開' : '一時停止',
+                          _isPaused
+                              ? AppLocalizations.getText(
+                                  'resume_workout',
+                                  widget.language,
+                                )
+                              : AppLocalizations.getText(
+                                  'pause_workout',
+                                  widget.language,
+                                ),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -1141,8 +1484,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             borderRadius: BorderRadius.circular(25),
                           ),
                         ),
-                        child: const Text(
-                          '終了',
+                        child: Text(
+                          AppLocalizations.getText(
+                            'stop_workout',
+                            widget.language,
+                          ),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -1204,21 +1550,506 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 }
 
 // Placeholder screens for other tabs
-class RoutineScreen extends StatelessWidget {
-  const RoutineScreen({super.key});
+class RoutineScreen extends StatefulWidget {
+  final bool isDarkMode;
+  final String language;
+
+  const RoutineScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.language,
+  });
+
+  @override
+  State<RoutineScreen> createState() => _RoutineScreenState();
+}
+
+class _RoutineScreenState extends State<RoutineScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<String> _favoriteExercises = [];
+  List<String> _routines = [];
+  List<String> _allExercises = [
+    'squat',
+    'push_up',
+    'plank',
+    'lunges',
+    'burpees',
+    'mountain_climber',
+  ];
+  List<String> _filteredExercises = [];
+  bool _showSearchResults = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredExercises = _allExercises;
+    _loadData();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        _showSearchResults = false;
+        _filteredExercises = _allExercises;
+      } else {
+        _showSearchResults = true;
+        _filteredExercises = _allExercises
+            .where(
+              (exercise) => AppLocalizations.getText(
+                exercise,
+                widget.language,
+              ).toLowerCase().contains(_searchController.text.toLowerCase()),
+            )
+            .toList();
+      }
+    });
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _favoriteExercises = prefs.getStringList('favorite_exercises') ?? [];
+      _routines = prefs.getStringList('user_routines') ?? [];
+    });
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('favorite_exercises', _favoriteExercises);
+    await prefs.setStringList('user_routines', _routines);
+  }
+
+  void _toggleFavorite(String exercise) {
+    setState(() {
+      if (_favoriteExercises.contains(exercise)) {
+        _favoriteExercises.remove(exercise);
+      } else {
+        _favoriteExercises.add(exercise);
+      }
+    });
+    _saveData();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Routine Screen', style: TextStyle(fontSize: 24)),
+    return Scaffold(
+      backgroundColor: widget.isDarkMode
+          ? const Color(0xFF121212)
+          : const Color(0xFFF8F9FA),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 검색바
+              _buildSearchBar(),
+
+              const SizedBox(height: 24),
+
+              // 검색 결과 또는 즐겨찾기 섹션
+              if (_showSearchResults)
+                _buildSearchResults()
+              else
+                _buildFavoritesSection(),
+
+              const SizedBox(height: 32),
+
+              // 루틴 섹션
+              _buildRoutineSection(),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateRoutineDialog,
+        backgroundColor: Colors.blue[600],
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? Colors.grey[800] : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(
+          color: widget.isDarkMode ? Colors.white : Colors.black,
+        ),
+        decoration: InputDecoration(
+          hintText: AppLocalizations.getText(
+            'search_placeholder',
+            widget.language,
+          ),
+          hintStyle: TextStyle(
+            color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: widget.isDarkMode
+                        ? Colors.grey[400]
+                        : Colors.grey[600],
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.getText('search_exercises', widget.language),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: widget.isDarkMode ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _filteredExercises.length,
+          itemBuilder: (context, index) {
+            return _buildSearchResultCard(_filteredExercises[index]);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchResultCard(String exerciseKey) {
+    final isFavorite = _favoriteExercises.contains(exerciseKey);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? Colors.grey[700] : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: widget.isDarkMode ? Colors.grey[600]! : Colors.grey[300]!,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            AppLocalizations.getText(exerciseKey, widget.language),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+          IconButton(
+            onPressed: () => _toggleFavorite(exerciseKey),
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? Colors.red : Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFavoritesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Text(
+            AppLocalizations.getText('favorites', widget.language),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_favoriteExercises.isEmpty)
+          Center(
+            child: Text(
+              '즐겨찾기한 운동이 없습니다',
+              style: TextStyle(
+                color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 1.5,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: _favoriteExercises.length,
+            itemBuilder: (context, index) {
+              return _buildFavoriteCard(_favoriteExercises[index]);
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFavoriteCard(String exerciseKey) {
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? Colors.grey[700] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Text(
+          AppLocalizations.getText(exerciseKey, widget.language),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: widget.isDarkMode ? Colors.white : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoutineSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Text(
+            AppLocalizations.getText('routine', widget.language),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_routines.isEmpty)
+          Center(
+            child: Text(
+              '생성된 루틴이 없습니다',
+              style: TextStyle(
+                color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _routines.length,
+            itemBuilder: (context, index) {
+              return _buildRoutineCard(_routines[index]);
+            },
+          ),
+      ],
+    );
+  }
+
+  void _showCreateRoutineDialog() {
+    final TextEditingController nameController = TextEditingController();
+    List<String> selectedExercises = [];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: widget.isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white,
+              title: Text(
+                AppLocalizations.getText('create_routine', widget.language),
+                style: TextStyle(
+                  color: widget.isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      style: TextStyle(
+                        color: widget.isDarkMode ? Colors.white : Colors.black,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.getText(
+                          'routine_name',
+                          widget.language,
+                        ),
+                        labelStyle: TextStyle(
+                          color: widget.isDarkMode
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
+                        ),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: widget.isDarkMode
+                                ? Colors.grey[600]!
+                                : Colors.grey[400]!,
+                          ),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppLocalizations.getText(
+                        'select_exercises',
+                        widget.language,
+                      ),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: widget.isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._allExercises
+                        .map(
+                          (exercise) => CheckboxListTile(
+                            title: Text(
+                              AppLocalizations.getText(
+                                exercise,
+                                widget.language,
+                              ),
+                              style: TextStyle(
+                                color: widget.isDarkMode
+                                    ? Colors.white
+                                    : Colors.black,
+                              ),
+                            ),
+                            value: selectedExercises.contains(exercise),
+                            onChanged: (bool? value) {
+                              setState(() {
+                                if (value == true) {
+                                  selectedExercises.add(exercise);
+                                } else {
+                                  selectedExercises.remove(exercise);
+                                }
+                              });
+                            },
+                            activeColor: Colors.blue,
+                          ),
+                        )
+                        .toList(),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    AppLocalizations.getText('cancel', widget.language),
+                    style: TextStyle(
+                      color: widget.isDarkMode
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (nameController.text.isNotEmpty &&
+                        selectedExercises.isNotEmpty) {
+                      setState(() {
+                        _routines.add(nameController.text);
+                      });
+                      _saveData();
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: Text(
+                    AppLocalizations.getText('save_routine', widget.language),
+                    style: TextStyle(color: Colors.blue),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRoutineCard(String routineKey) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? Colors.grey[700] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        AppLocalizations.getText(routineKey, widget.language),
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: widget.isDarkMode ? Colors.white : Colors.black87,
+        ),
       ),
     );
   }
 }
 
 class LogScreen extends StatefulWidget {
-  const LogScreen({super.key});
+  final bool isDarkMode;
+  final String language;
+
+  const LogScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.language,
+  });
 
   @override
   State<LogScreen> createState() => _LogScreenState();
@@ -1364,3 +2195,291 @@ class _LogScreenState extends State<LogScreen> {
   }
 }
 
+class SettingScreen extends StatefulWidget {
+  final bool isDarkMode;
+  final Function(bool) onDarkModeChanged;
+  final String language;
+  final Function(String) onLanguageChanged;
+
+  const SettingScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.onDarkModeChanged,
+    required this.language,
+    required this.onLanguageChanged,
+  });
+
+  @override
+  State<SettingScreen> createState() => _SettingScreenState();
+}
+
+class _SettingScreenState extends State<SettingScreen> {
+  String _userName = 'ユーザー';
+  String _userEmail = 'user@example.com';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString('user_name') ?? 'ユーザー';
+      _userEmail = prefs.getString('user_email') ?? 'user@example.com';
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_dark_mode', widget.isDarkMode);
+    await prefs.setString('selected_language', widget.language);
+    await prefs.setString('user_name', _userName);
+    await prefs.setString('user_email', _userEmail);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: widget.isDarkMode
+          ? const Color(0xFF121212)
+          : const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: Text(
+          AppLocalizations.getText('setting', widget.language),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: widget.isDarkMode ? Colors.white : Colors.black87,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // 프로필 섹션
+          _buildProfileSection(),
+          const SizedBox(height: 24),
+
+          // 앱 설정 섹션
+          _buildAppSettingsSection(),
+          const SizedBox(height: 24),
+
+          // 언어 설정 섹션
+          _buildLanguageSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: widget.isDarkMode
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppLocalizations.getText('profile', widget.language),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF87CEEB).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Icon(
+                  Icons.person,
+                  size: 30,
+                  color: Color(0xFF87CEEB),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _userName,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: widget.isDarkMode
+                            ? Colors.white
+                            : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _userEmail,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: widget.isDarkMode
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppSettingsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: widget.isDarkMode
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppLocalizations.getText('app_settings', widget.language),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSettingItem(
+            icon: Icons.dark_mode,
+            title: AppLocalizations.getText('dark_mode', widget.language),
+            subtitle: AppLocalizations.getText(
+              'dark_mode_subtitle',
+              widget.language,
+            ),
+            trailing: Switch(
+              value: widget.isDarkMode,
+              onChanged: (value) {
+                widget.onDarkModeChanged(value);
+                _saveSettings();
+              },
+              activeColor: const Color(0xFF87CEEB),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: widget.isDarkMode
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppLocalizations.getText('language', widget.language),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildLanguageOption('日本語', '日本語'),
+          _buildLanguageOption('한국어', '한국어'),
+          _buildLanguageOption('English', 'English'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageOption(String value, String label) {
+    return RadioListTile<String>(
+      title: Text(
+        label,
+        style: TextStyle(
+          color: widget.isDarkMode ? Colors.white : Colors.black87,
+        ),
+      ),
+      value: value,
+      groupValue: widget.language,
+      onChanged: (String? newValue) {
+        if (newValue != null) {
+          widget.onLanguageChanged(newValue);
+          _saveSettings();
+        }
+      },
+      activeColor: const Color(0xFF87CEEB),
+    );
+  }
+
+  Widget _buildSettingItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Widget trailing,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF87CEEB)),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: widget.isDarkMode ? Colors.white : Colors.black87,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+        ),
+      ),
+      trailing: trailing,
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+}
