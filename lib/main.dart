@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:math';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -445,34 +444,22 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
-              label: AppLocalizations.getText(
-                'home',
-                _selectedLanguage,
-              ).toUpperCase(),
+              label: 'HOME',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.fitness_center_outlined),
               activeIcon: Icon(Icons.fitness_center),
-              label: AppLocalizations.getText(
-                'routine',
-                _selectedLanguage,
-              ).toUpperCase(),
+              label: 'ROUTINE',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),
               activeIcon: Icon(Icons.analytics),
-              label: AppLocalizations.getText(
-                'log',
-                _selectedLanguage,
-              ).toUpperCase(),
+              label: 'LOG',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),
               activeIcon: Icon(Icons.settings),
-              label: AppLocalizations.getText(
-                'setting',
-                _selectedLanguage,
-              ).toUpperCase(),
+              label: 'SETTING',
             ),
           ],
         ),
@@ -483,27 +470,49 @@ class _MainScreenState extends State<MainScreen> {
 
 // 운동 기록 데이터 모델
 class WorkoutRecord {
-  final DateTime date;
+  final DateTime startTime;
+  final DateTime endTime;
   final int duration; // seconds
   final String type;
 
   WorkoutRecord({
-    required this.date,
+    required this.startTime,
+    required this.endTime,
     required this.duration,
     required this.type,
   });
 
+  // 날짜만 반환하는 getter (기존 호환성을 위해)
+  DateTime get date => DateTime(startTime.year, startTime.month, startTime.day);
+
   Map<String, dynamic> toJson() => {
-    'date': date.toIso8601String(),
+    'startTime': startTime.toIso8601String(),
+    'endTime': endTime.toIso8601String(),
     'duration': duration,
     'type': type,
   };
 
-  factory WorkoutRecord.fromJson(Map<String, dynamic> json) => WorkoutRecord(
-    date: DateTime.parse(json['date']),
-    duration: json['duration'],
-    type: json['type'],
-  );
+  factory WorkoutRecord.fromJson(Map<String, dynamic> json) {
+    // 기존 데이터 호환성을 위해 date 필드도 확인
+    if (json.containsKey('startTime') && json.containsKey('endTime')) {
+      return WorkoutRecord(
+        startTime: DateTime.parse(json['startTime']),
+        endTime: DateTime.parse(json['endTime']),
+        duration: json['duration'],
+        type: json['type'],
+      );
+    } else {
+      // 기존 데이터 형식 (date만 있는 경우)
+      final date = DateTime.parse(json['date']);
+      final duration = json['duration'];
+      return WorkoutRecord(
+        startTime: date,
+        endTime: date.add(Duration(seconds: duration)),
+        duration: duration,
+        type: json['type'],
+      );
+    }
+  }
 }
 
 class HomeScreen extends StatefulWidget {
@@ -520,25 +529,20 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   Timer? _timer;
   bool _isWorkoutMode = false;
   bool _isPaused = false;
 
-  // D-Day 카운트다운용
-  int _days = 3;
-  int _hours = 12;
-  int _minutes = 24;
-  int _seconds = 42;
+  // D-Day 카운트다운용 (현재는 하드코딩된 값 사용)
 
   // 스탑워치용
   int _workoutHours = 0;
   int _workoutMinutes = 0;
   int _workoutSeconds = 0;
+  DateTime? _workoutStartTime;
 
-  // 애니메이션 컨트롤러
-  late AnimationController _animationController;
-  late AnimationController _progressController;
+  // 애니메이션 컨트롤러 제거됨
 
   // 달력 및 운동 기록
   DateTime _focusedDay = DateTime.now();
@@ -548,28 +552,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<WorkoutRecord> _workoutRecords = [];
   DateTime? _nextWorkoutDate;
   List<DateTime> _scheduledDays = [];
-  double _countdownProgress = 1.0; // 1.0 = 100%
+  // _countdownProgress 변수 제거됨
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _startCountdownTimer();
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-    _progressController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
+    // 애니메이션 컨트롤러 초기화 제거됨
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _animationController.dispose();
-    _progressController.dispose();
+    // 애니메이션 컨트롤러 dispose 제거됨
     super.dispose();
   }
 
@@ -660,24 +656,94 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _calculateCountdown();
   }
 
+  String _getMonthlyWorkoutTimeText() {
+    final now = DateTime.now();
+    final currentMonth = now.month;
+    final currentYear = now.year;
+
+    // 이번 달 운동 기록들 필터링
+    final monthlyRecords = _workoutRecords.where((record) {
+      return record.date.year == currentYear &&
+          record.date.month == currentMonth;
+    }).toList();
+
+    // 총 운동 시간 계산 (초 단위)
+    int totalSeconds = 0;
+    for (final record in monthlyRecords) {
+      totalSeconds += record.duration;
+    }
+
+    // 시간과 분으로 변환
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+
+    if (hours > 0) {
+      return '${hours}時間${minutes}分';
+    } else {
+      return '${minutes}分';
+    }
+  }
+
+  String _getCountdownText() {
+    if (_isWorkoutMode) {
+      // 운동 중일 때는 스탑워치 형식
+      return '${_workoutHours.toString().padLeft(2, '0')}:${_workoutMinutes.toString().padLeft(2, '0')}:${_workoutSeconds.toString().padLeft(2, '0')}';
+    } else {
+      // 운동 전에는 다음 운동예정일까지 카운트다운
+      if (_nextWorkoutDate == null) {
+        return '00:00:00';
+      }
+
+      final now = DateTime.now();
+      final target = DateTime(
+        _nextWorkoutDate!.year,
+        _nextWorkoutDate!.month,
+        _nextWorkoutDate!.day,
+      );
+
+      final difference = target.difference(now);
+
+      if (difference.isNegative) {
+        return '00:00:00';
+      }
+
+      final hours = difference.inHours;
+      final minutes = difference.inMinutes % 60;
+      final seconds = difference.inSeconds % 60;
+
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+  }
+
+  String _getNextWorkoutDateText() {
+    if (_nextWorkoutDate == null) {
+      return '予定なし';
+    }
+
+    final month = _nextWorkoutDate!.month;
+    final day = _nextWorkoutDate!.day;
+
+    return '${month}月${day}日予定';
+  }
+
+  String _getCurrentDateText() {
+    final now = DateTime.now();
+    final month = now.month;
+    final day = now.day;
+
+    // 요일 계산
+    final weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+    final weekday = weekdays[now.weekday - 1];
+
+    return '${month}/${day}(${weekday})';
+  }
+
   void _calculateCountdown() {
     if (_nextWorkoutDate == null) return;
 
     final now = DateTime.now();
-    // 목표는 해당 날짜의 00:00:00
-    final target = DateTime(
-      _nextWorkoutDate!.year,
-      _nextWorkoutDate!.month,
-      _nextWorkoutDate!.day,
-    );
-    final difference = target.difference(now);
 
     setState(() {
-      _days = difference.inDays;
-      _hours = difference.inHours % 24;
-      _minutes = difference.inMinutes % 60;
-      _seconds = difference.inSeconds % 60;
-
       // 홈탭 원형 테두리 진행도 (오늘 설정해서 내일모레 00시까지를 100으로 가정)
       // 기준 시작: 오늘 00:00, 기준 종료: 오늘 기준 + 2일 00:00
       final startOfToday = DateTime(now.year, now.month, now.day);
@@ -692,7 +758,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (progress.isNaN || progress.isInfinite) {
         progress = 0.0;
       }
-      _countdownProgress = progress.clamp(0.0, 1.0);
+      // _countdownProgress 계산 제거됨
     });
   }
 
@@ -700,6 +766,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       // 매 틱마다 남은 시간 재계산하여 정확도 유지
       _calculateCountdown();
+      setState(() {
+        // UI 업데이트를 위해 setState 호출
+      });
     });
   }
 
@@ -731,9 +800,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _workoutHours = 0;
       _workoutMinutes = 0;
       _workoutSeconds = 0;
+      _workoutStartTime = DateTime.now(); // 운동 시작 시간 저장
       _startWorkoutTimer();
-      _animationController.repeat();
-      _progressController.forward();
+      // 애니메이션 컨트롤러 실행 제거됨
     });
   }
 
@@ -756,9 +825,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // 운동 기록 저장
       final totalSeconds =
           _workoutHours * 3600 + _workoutMinutes * 60 + _workoutSeconds;
-      if (totalSeconds > 0) {
+      if (totalSeconds > 0 && _workoutStartTime != null) {
+        final endTime = DateTime.now();
         final record = WorkoutRecord(
-          date: DateTime.now(),
+          startTime: _workoutStartTime!,
+          endTime: endTime,
           duration: totalSeconds,
           type: '근력운동',
         );
@@ -777,29 +848,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _saveData();
       }
 
+      // 운동 시작 시간 초기화
+      _workoutStartTime = null;
+
       // 대기 모드로 돌아가기
       _calculateNextWorkoutDate();
       _startCountdownTimer();
-      _animationController.stop();
-      _animationController.reset();
-      _progressController.reset();
+      // 애니메이션 컨트롤러 정지 제거됨
     });
-  }
-
-  String _getTimerText() {
-    if (_isWorkoutMode) {
-      // 스탑워치 모드: 00:00:00 형식
-      return '${_workoutHours.toString().padLeft(2, '0')}:${_workoutMinutes.toString().padLeft(2, '0')}:${_workoutSeconds.toString().padLeft(2, '0')}';
-    } else {
-      // D-Day 모드
-      if (_days > 0) {
-        // 1일 이상 남은 경우: 3일 12:24:42
-        return '$_days일 ${_hours.toString().padLeft(2, '0')}:${_minutes.toString().padLeft(2, '0')}:${_seconds.toString().padLeft(2, '0')}';
-      } else {
-        // 1일 미만 남은 경우: 12:24:42
-        return '${_hours.toString().padLeft(2, '0')}:${_minutes.toString().padLeft(2, '0')}:${_seconds.toString().padLeft(2, '0')}';
-      }
-    }
   }
 
   void _showCalendarDialog() {
@@ -1325,224 +1381,222 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(24.0),
           child: Column(
             children: [
-              // Header with icons
+              // Header with date and icons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF87CEEB).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey[600]!, width: 1),
                     ),
                     child: GestureDetector(
                       onTap: _showCalendarDialog,
-                      child: const Icon(
+                      child: Icon(
                         Icons.calendar_today_outlined,
-                        color: Color(0xFF87CEEB),
-                        size: 24,
+                        color: Colors.grey[600],
+                        size: 16,
                       ),
                     ),
                   ),
+                  Text(
+                    _getCurrentDateText(),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: widget.isDarkMode
+                          ? Colors.white
+                          : Colors.grey[800],
+                    ),
+                  ),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF87CEEB).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey[600]!, width: 1),
                     ),
-                    child: const Icon(
-                      Icons.speed_outlined,
-                      color: Color(0xFF87CEEB),
-                      size: 24,
+                    child: Icon(
+                      Icons.monitor_weight_outlined,
+                      color: Colors.grey[600],
+                      size: 16,
                     ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 30),
+
+              // Metrics card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    // Left section - Exercise time
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '今月の運動時間',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _getMonthlyWorkoutTimeText(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.w400,
+                              fontFamily: 'Hiragino Sans',
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Divider
+                    Container(height: 40, width: 1, color: Colors.grey[300]),
+                    // Middle section - Weight change
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '体重の変化',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '+2.3kg',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.w400,
+                              fontFamily: 'Hiragino Sans',
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Divider
+                    Container(height: 40, width: 1, color: Colors.grey[300]),
+                    // Right section - Exercise pace
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '運動ペース',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '3.6日',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.w400,
+                              fontFamily: 'Hiragino Sans',
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 60),
+
+              // Central countdown timer
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 320,
+                    height: 320,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFF2F2F2),
+                        width: 12,
+                      ),
+                    ),
+                  ),
+                  Column(
+                    children: [
+                      Text(
+                        _isWorkoutMode ? '運動時間' : '次に運動日まで',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _getCountdownText(),
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _isWorkoutMode
+                            ? (_isPaused ? '一時停止中...' : '運動中...')
+                            : _getNextWorkoutDateText(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _isWorkoutMode
+                              ? Colors.green[600]
+                              : Colors.grey[500],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
 
               const SizedBox(height: 40),
 
-              // Goal and activity stats
-              Column(
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: widget.isDarkMode
-                            ? Colors.white
-                            : Colors.black87,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      children: const [
-                        TextSpan(text: 'ゴールまであと '),
-                        TextSpan(
-                          text: '6kg',
-                          style: TextStyle(
-                            color: Color(0xFFFF6B9D),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: widget.isDarkMode
-                            ? Colors.white
-                            : Colors.black87,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      children: [
-                        const TextSpan(text: '今月活動日数 '),
-                        TextSpan(
-                          text:
-                              '${_workoutDays.where((d) => d.month == DateTime.now().month).length}日',
-                          style: const TextStyle(
-                            color: Color(0xFFFF6B9D),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 60),
-
-              // Circular timer
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 280,
-                    height: 280,
-                    child: AnimatedBuilder(
-                      animation: _isWorkoutMode
-                          ? _progressController
-                          : _animationController,
-                      builder: (context, child) {
-                        return CircularProgressIndicator(
-                          value: _isWorkoutMode
-                              ? _progressController.value
-                              : (_nextWorkoutDate != null
-                                    ? _countdownProgress
-                                    : 0.0),
-                          strokeWidth: 12,
-                          backgroundColor: Colors.grey.withOpacity(0.2),
-                          valueColor: _isWorkoutMode
-                              ? AlwaysStoppedAnimation<Color>(
-                                  Color.lerp(
-                                    const Color(0xFF4CAF50), // 초록색
-                                    const Color(0xFF2196F3), // 파란색
-                                    (sin(_animationController.value * 2 * pi) +
-                                            1) /
-                                        2,
-                                  )!,
-                                )
-                              : const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF87CEEB),
-                                ),
-                        );
-                      },
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      Text(
-                        _isWorkoutMode
-                            ? AppLocalizations.getText(
-                                'workout_time',
-                                widget.language,
-                              )
-                            : AppLocalizations.getText(
-                                'next_workout',
-                                widget.language,
-                              ),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: widget.isDarkMode
-                              ? Colors.grey[400]
-                              : Colors.black54,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _getTimerText(),
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w600,
-                          color: widget.isDarkMode
-                              ? Colors.white
-                              : Colors.black87,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              (_isWorkoutMode
-                                      ? const Color(0xFF4CAF50)
-                                      : const Color(0xFF87CEEB))
-                                  .withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _isWorkoutMode
-                              ? (_isPaused
-                                    ? AppLocalizations.getText(
-                                        'workout_paused',
-                                        widget.language,
-                                      )
-                                    : AppLocalizations.getText(
-                                        'workout_in_progress',
-                                        widget.language,
-                                      ))
-                              : '8月22日 火曜日',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: _isWorkoutMode
-                                ? const Color(0xFF4CAF50)
-                                : const Color(0xFF87CEEB),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const Spacer(),
-
-              // Workout buttons
+              // Start workout button
               if (!_isWorkoutMode)
                 Container(
                   width: MediaQuery.of(context).size.width * 0.7,
                   height: 50,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFAEE8E6), Color(0xFF3DA8EF)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                     ),
                     borderRadius: BorderRadius.circular(25),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF87CEEB).withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
                   ),
                   child: ElevatedButton(
                     onPressed: _startWorkoutMode,
@@ -1554,10 +1608,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     child: Text(
-                      AppLocalizations.getText(
-                        'start_workout',
-                        widget.language,
-                      ),
+                      '運動を開始する',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1667,48 +1718,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             color: Colors.white,
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-
-              const SizedBox(height: 16),
-
-              // Skip button (운동 모드가 아닐 때만 표시)
-              if (!_isWorkoutMode)
-                TextButton(
-                  onPressed: () {
-                    // TODO: 스킵 기능 구현
-                  },
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF87CEEB),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 20),
-
-              // Bottom instruction (운동 모드가 아닐 때만 표시)
-              if (!_isWorkoutMode)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.keyboard_arrow_up,
-                      color: Colors.grey.withOpacity(0.6),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '下にスライドして今日の運動プランを立てる',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.withOpacity(0.8),
-                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
@@ -2711,9 +2720,17 @@ class _LogScreenState extends State<LogScreen> {
     _loadWorkoutRecords();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 화면이 다시 활성화될 때마다 데이터 새로고침
+    _loadWorkoutRecords();
+  }
+
   Future<void> _loadWorkoutRecords() async {
     final prefs = await SharedPreferences.getInstance();
     final recordsJson = prefs.getStringList('workout_records') ?? [];
+
     setState(() {
       _workoutRecords =
           recordsJson.map((e) => WorkoutRecord.fromJson(jsonDecode(e))).toList()
@@ -2730,6 +2747,39 @@ class _LogScreenState extends State<LogScreen> {
       return '$hours時間$minutes分$seconds秒';
     } else {
       return '$minutes分$seconds秒';
+    }
+  }
+
+  Future<void> _clearAllRecords() async {
+    // 확인 다이얼로그 표시
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('운동 기록 삭제'),
+          content: const Text('모든 운동 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('삭제', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('workout_records');
+      print('모든 운동 기록이 삭제되었습니다.');
+
+      setState(() {
+        _workoutRecords.clear();
+      });
     }
   }
 
@@ -2751,6 +2801,26 @@ class _LogScreenState extends State<LogScreen> {
             ? const Color(0xFF121212)
             : Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.delete_sweep,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+            onPressed: () {
+              _clearAllRecords();
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.refresh,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+            onPressed: () {
+              _loadWorkoutRecords();
+            },
+          ),
+        ],
       ),
       body: _workoutRecords.isEmpty
           ? const Center(
@@ -2827,12 +2897,22 @@ class _LogScreenState extends State<LogScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${record.date.year}年${record.date.month}月${record.date.day}日',
+                              '${record.startTime.year}年${record.startTime.month}月${record.startTime.day}日',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: widget.isDarkMode
                                     ? Colors.grey[400]
                                     : Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${record.startTime.hour.toString().padLeft(2, '0')}:${record.startTime.minute.toString().padLeft(2, '0')} - ${record.endTime.hour.toString().padLeft(2, '0')}:${record.endTime.minute.toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: widget.isDarkMode
+                                    ? Colors.grey[500]
+                                    : Colors.grey[600],
                               ),
                             ),
                           ],
