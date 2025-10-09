@@ -86,6 +86,8 @@ class AppLocalizations {
       'add_exercise': '運動を追加',
       'save_routine': 'ルーティンを保存',
       'search_exercises': '運動を検索...',
+      'next': '次へ',
+      'back': '戻る',
       // 추가 운동 키 (일본어)
       'dumbbell_fly': 'ダンベルフライ',
       'overhead_extension': 'オーバーヘッドエクステンション',
@@ -288,6 +290,8 @@ class AppLocalizations {
       'add_exercise': '운동 추가',
       'save_routine': '루틴 저장',
       'search_exercises': '운동 검색...',
+      'next': '다음',
+      'back': '이전',
       // 추가 운동 키 (한국어)
       'dumbbell_fly': '덤벨 플라이',
       'overhead_extension': '오버헤드 익스텐션',
@@ -490,6 +494,8 @@ class AppLocalizations {
       'add_exercise': 'Add Exercise',
       'save_routine': 'Save Routine',
       'search_exercises': 'Search exercises...',
+      'next': 'Next',
+      'back': 'Back',
       // Added exercise keys (English)
       'dumbbell_fly': 'Dumbbell Fly',
       'overhead_extension': 'Overhead Extension',
@@ -2307,6 +2313,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
       if (_searchFocus.hasFocus) {
         setState(() {
           _filteredExercises = _allExercises;
+          _sortExercises(); // 검색창을 열 때 즐겨찾기 정렬 적용
         });
         _showSearchDropdown();
       } else {
@@ -2325,6 +2332,36 @@ class _RoutineScreenState extends State<RoutineScreen> {
     _searchFocus.dispose();
     _removeSearchDropdown();
     super.dispose();
+  }
+
+  // 운동 리스트 정렬 (즐겨찾기 우선, 그 다음 언어별 정렬)
+  void _sortExercises() {
+    _filteredExercises.sort((a, b) {
+      final aIsFavorite = _favoriteExercises.contains(a);
+      final bIsFavorite = _favoriteExercises.contains(b);
+
+      // 1순위: 즐겨찾기 운동이 먼저 오도록 정렬
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+
+      // 2순위: 같은 그룹 내에서는 언어별 순으로 정렬
+      final aName = AppLocalizations.getText(a, widget.language).toLowerCase();
+      final bName = AppLocalizations.getText(b, widget.language).toLowerCase();
+
+      // 언어별 정렬 기준
+      if (widget.language == '한국어') {
+        // 한국어: 가나다 순
+        return aName.compareTo(bName);
+      } else if (widget.language == '日本語') {
+        // 일본어: 히라가나/가타카나 순
+        final aHiragana = _toHiragana(aName);
+        final bHiragana = _toHiragana(bName);
+        return aHiragana.compareTo(bHiragana);
+      } else {
+        // 영어: 알파벳 순
+        return aName.compareTo(bName);
+      }
+    });
   }
 
   void _onSearchChanged() {
@@ -2362,38 +2399,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
       }
 
       // 즐겨찾기한 운동들을 상단으로 정렬 (검색어 유무 관계없이 항상 적용)
-      _filteredExercises.sort((a, b) {
-        final aIsFavorite = _favoriteExercises.contains(a);
-        final bIsFavorite = _favoriteExercises.contains(b);
-
-        // 1순위: 즐겨찾기 운동이 먼저 오도록 정렬
-        if (aIsFavorite && !bIsFavorite) return -1;
-        if (!aIsFavorite && bIsFavorite) return 1;
-
-        // 2순위: 같은 그룹 내에서는 알파벳 순으로 정렬
-        final aName = AppLocalizations.getText(
-          a,
-          widget.language,
-        ).toLowerCase();
-        final bName = AppLocalizations.getText(
-          b,
-          widget.language,
-        ).toLowerCase();
-
-        // 언어별 정렬 기준
-        if (widget.language == '한국어') {
-          // 한국어: 가나다 순
-          return aName.compareTo(bName);
-        } else if (widget.language == '日本語') {
-          // 일본어: 히라가나/가타카나 순
-          final aHiragana = _toHiragana(aName);
-          final bHiragana = _toHiragana(bName);
-          return aHiragana.compareTo(bHiragana);
-        } else {
-          // 영어: 알파벳 순
-          return aName.compareTo(bName);
-        }
-      });
+      _sortExercises();
     });
     _markSearchOverlayNeedsBuild();
   }
@@ -3117,129 +3123,19 @@ class _RoutineScreenState extends State<RoutineScreen> {
   }
 
   void _showCreateRoutineDialog() {
-    final TextEditingController nameController = TextEditingController();
-    List<String> selectedExercises = [];
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: widget.isDarkMode
-                  ? Colors.grey[800]
-                  : Colors.white,
-              title: Text(
-                AppLocalizations.getText('create_routine', widget.language),
-                style: TextStyle(
-                  color: widget.isDarkMode ? Colors.white : Colors.black,
-                ),
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      style: TextStyle(
-                        color: widget.isDarkMode ? Colors.white : Colors.black,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.getText(
-                          'routine_name',
-                          widget.language,
-                        ),
-                        labelStyle: TextStyle(
-                          color: widget.isDarkMode
-                              ? Colors.grey[400]
-                              : Colors.grey[600],
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: widget.isDarkMode
-                                ? Colors.grey[600]!
-                                : Colors.grey[400]!,
-                          ),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.blue),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.getText(
-                        'select_exercises',
-                        widget.language,
-                      ),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: widget.isDarkMode ? Colors.white : Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ..._allExercises.map(
-                      (exercise) => CheckboxListTile(
-                        title: Text(
-                          AppLocalizations.getText(exercise, widget.language),
-                          style: TextStyle(
-                            color: widget.isDarkMode
-                                ? Colors.white
-                                : Colors.black,
-                          ),
-                        ),
-                        value: selectedExercises.contains(exercise),
-                        onChanged: (bool? value) {
-                          setState(() {
-                            if (value == true) {
-                              selectedExercises.add(exercise);
-                            } else {
-                              selectedExercises.remove(exercise);
-                            }
-                          });
-                        },
-                        activeColor: Colors.blue,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    AppLocalizations.getText('cancel', widget.language),
-                    style: TextStyle(
-                      color: widget.isDarkMode
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    if (nameController.text.isNotEmpty &&
-                        selectedExercises.isNotEmpty) {
-                      setState(() {
-                        _routines.add({
-                          'name': nameController.text,
-                          'exercises': selectedExercises,
-                          'createdAt': DateTime.now().toIso8601String(),
-                        });
-                      });
-                      _saveData();
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  child: Text(
-                    AppLocalizations.getText('save_routine', widget.language),
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                ),
-              ],
-            );
+        return _CreateRoutineDialog(
+          isDarkMode: widget.isDarkMode,
+          language: widget.language,
+          allExercises: _allExercises,
+          favoriteExercises: _favoriteExercises,
+          onSave: (routine) {
+            setState(() {
+              _routines.add(routine);
+            });
+            _saveData();
           },
         );
       },
@@ -3283,7 +3179,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // 루틴 시작 로직 (나중에 구현)
+            print('🔥 루틴 카드 클릭됨: ${routine['name']}');
             _showRoutineDetails(routine);
           },
           borderRadius: BorderRadius.circular(16),
@@ -3319,7 +3215,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${exercises.length} ${AppLocalizations.getText('select_exercises', widget.language)}',
+                        '${exercises.length}개 운동',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withOpacity(0.8),
@@ -3328,29 +3224,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      setState(() {
-                        _routines.remove(routine);
-                      });
-                      _saveData();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('삭제'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                const Icon(Icons.chevron_right, color: Colors.white, size: 28),
               ],
             ),
           ),
@@ -3387,54 +3261,30 @@ class _RoutineScreenState extends State<RoutineScreen> {
   void _showRoutineDetails(Map<String, dynamic> routine) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: widget.isDarkMode ? Colors.grey[800] : Colors.white,
-        title: Text(
-          routine['name'],
-          style: TextStyle(
-            color: widget.isDarkMode ? Colors.white : Colors.black,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '포함된 운동:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: widget.isDarkMode ? Colors.white : Colors.black,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...((routine['exercises'] as List<dynamic>).cast<String>().map(
-              (exercise) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(
-                  '• ${AppLocalizations.getText(exercise, widget.language)}',
-                  style: TextStyle(
-                    color: widget.isDarkMode ? Colors.white : Colors.black,
-                  ),
-                ),
-              ),
-            )),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('닫기'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // 루틴 시작 로직
-            },
-            child: Text('시작하기'),
-          ),
-        ],
+      builder: (context) => _RoutineAnalysisDialog(
+        routine: routine,
+        isDarkMode: widget.isDarkMode,
+        language: widget.language,
+        onEdit: () {
+          Navigator.of(context).pop();
+          _showEditRoutineDialog(routine);
+        },
+        onDelete: () {
+          Navigator.of(context).pop();
+          setState(() {
+            _routines.remove(routine);
+          });
+          _saveData();
+        },
       ),
     );
+  }
+
+  void _showEditRoutineDialog(Map<String, dynamic> routine) {
+    // TODO: 루틴 수정 다이얼로그 구현
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('루틴 수정 기능은 곧 추가됩니다')));
   }
 }
 
@@ -4591,6 +4441,1314 @@ class _SettingScreenState extends State<SettingScreen> {
       ),
       trailing: trailing,
       contentPadding: EdgeInsets.zero,
+    );
+  }
+}
+
+// 루틴 생성 다이얼로그
+class _CreateRoutineDialog extends StatefulWidget {
+  final bool isDarkMode;
+  final String language;
+  final List<String> allExercises;
+  final List<String> favoriteExercises;
+  final Function(Map<String, dynamic>) onSave;
+
+  const _CreateRoutineDialog({
+    required this.isDarkMode,
+    required this.language,
+    required this.allExercises,
+    required this.favoriteExercises,
+    required this.onSave,
+  });
+
+  @override
+  State<_CreateRoutineDialog> createState() => _CreateRoutineDialogState();
+}
+
+class _CreateRoutineDialogState extends State<_CreateRoutineDialog> {
+  int _currentStep = 0;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  Set<int> _selectedDays = {};
+  List<String> _selectedExercises = [];
+  List<String> _filteredExercises = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredExercises = widget.allExercises;
+    _searchController.addListener(_onSearchChanged);
+    _sortExercises();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        _filteredExercises = widget.allExercises;
+      } else {
+        final searchText = _searchController.text.toLowerCase();
+        _filteredExercises = widget.allExercises.where((exercise) {
+          final exerciseName = AppLocalizations.getText(
+            exercise,
+            widget.language,
+          ).toLowerCase();
+
+          if (exerciseName.contains(searchText)) {
+            return true;
+          }
+
+          // 일본어인 경우 히라가나-가타카나 변환 검색
+          if (widget.language == '日本語') {
+            final hiraganaSearch = _toHiragana(searchText);
+            final katakanaSearch = _toKatakana(searchText);
+            final hiraganaExercise = _toHiragana(exerciseName);
+            final katakanaExercise = _toKatakana(exerciseName);
+
+            return hiraganaExercise.contains(hiraganaSearch) ||
+                katakanaExercise.contains(katakanaSearch) ||
+                hiraganaExercise.contains(katakanaSearch) ||
+                katakanaExercise.contains(hiraganaSearch);
+          }
+
+          return false;
+        }).toList();
+      }
+      _sortExercises();
+    });
+  }
+
+  void _sortExercises() {
+    _filteredExercises.sort((a, b) {
+      final aIsFavorite = widget.favoriteExercises.contains(a);
+      final bIsFavorite = widget.favoriteExercises.contains(b);
+
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+
+      final aName = AppLocalizations.getText(a, widget.language).toLowerCase();
+      final bName = AppLocalizations.getText(b, widget.language).toLowerCase();
+
+      if (widget.language == '한국어') {
+        return aName.compareTo(bName);
+      } else if (widget.language == '日本語') {
+        final aHiragana = _toHiragana(aName);
+        final bHiragana = _toHiragana(bName);
+        return aHiragana.compareTo(bHiragana);
+      } else {
+        return aName.compareTo(bName);
+      }
+    });
+  }
+
+  String _toKatakana(String text) {
+    return text.replaceAllMapped(
+      RegExp(r'[\u3041-\u3096]'),
+      (match) => String.fromCharCode(match.group(0)!.codeUnitAt(0) + 0x60),
+    );
+  }
+
+  String _toHiragana(String text) {
+    return text.replaceAllMapped(
+      RegExp(r'[\u30A1-\u30F6]'),
+      (match) => String.fromCharCode(match.group(0)!.codeUnitAt(0) - 0x60),
+    );
+  }
+
+  void _nextStep() {
+    if (_currentStep == 0 && _nameController.text.isEmpty) {
+      return;
+    }
+    if (_currentStep < 1) {
+      setState(() => _currentStep++);
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    }
+  }
+
+  void _saveRoutine() {
+    if (_nameController.text.isEmpty || _selectedExercises.isEmpty) {
+      return;
+    }
+
+    widget.onSave({
+      'name': _nameController.text,
+      'exercises': _selectedExercises,
+      'days': _selectedDays.toList(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.9,
+        ),
+        decoration: BoxDecoration(
+          color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 헤더
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF667EEA), const Color(0xFF764BA2)],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.fitness_center, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _currentStep == 0
+                          ? AppLocalizations.getText(
+                              'create_routine',
+                              widget.language,
+                            )
+                          : AppLocalizations.getText(
+                              'select_exercises',
+                              widget.language,
+                            ),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+
+            // 진행 표시기
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Row(
+                children: [
+                  _buildStepIndicator(0, '정보'),
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      color: _currentStep > 0
+                          ? const Color(0xFF667EEA)
+                          : (widget.isDarkMode
+                                ? Colors.grey[700]
+                                : Colors.grey[300]),
+                    ),
+                  ),
+                  _buildStepIndicator(1, '운동'),
+                ],
+              ),
+            ),
+
+            // 내용
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _currentStep == 0 ? _buildStep1() : _buildStep2(),
+              ),
+            ),
+
+            // 버튼들
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: widget.isDarkMode ? Colors.grey[900] : Colors.grey[50],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_currentStep > 0)
+                    TextButton.icon(
+                      onPressed: _previousStep,
+                      icon: const Icon(Icons.arrow_back),
+                      label: Text(
+                        AppLocalizations.getText('back', widget.language),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: widget.isDarkMode
+                            ? Colors.grey[400]
+                            : Colors.grey[700],
+                      ),
+                    )
+                  else
+                    const SizedBox(),
+
+                  ElevatedButton(
+                    onPressed: _currentStep == 0 ? _nextStep : _saveRoutine,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF667EEA),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _currentStep == 0
+                              ? AppLocalizations.getText(
+                                  'next',
+                                  widget.language,
+                                )
+                              : AppLocalizations.getText(
+                                  'save_routine',
+                                  widget.language,
+                                ),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          _currentStep == 0 ? Icons.arrow_forward : Icons.check,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator(int step, String label) {
+    final isActive = _currentStep >= step;
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: isActive
+                ? const Color(0xFF667EEA)
+                : (widget.isDarkMode ? Colors.grey[700] : Colors.grey[300]),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: isActive
+                ? Icon(Icons.check, color: Colors.white, size: 18)
+                : Text(
+                    '${step + 1}',
+                    style: TextStyle(
+                      color: widget.isDarkMode
+                          ? Colors.grey[500]
+                          : Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: isActive
+                ? (widget.isDarkMode ? Colors.white : Colors.black87)
+                : (widget.isDarkMode ? Colors.grey[500] : Colors.grey[600]),
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep1() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 루틴명
+        Text(
+          AppLocalizations.getText('routine_name', widget.language),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: widget.isDarkMode ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _nameController,
+          autofocus: true,
+          style: TextStyle(
+            color: widget.isDarkMode ? Colors.white : Colors.black,
+            fontSize: 16,
+          ),
+          decoration: InputDecoration(
+            hintText: '예: 아침 운동',
+            hintStyle: TextStyle(
+              color: widget.isDarkMode ? Colors.grey[600] : Colors.grey[400],
+            ),
+            filled: true,
+            fillColor: widget.isDarkMode ? Colors.grey[800] : Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // 요일 선택
+        Text(
+          '${AppLocalizations.getText('days', widget.language)} (선택사항)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: widget.isDarkMode ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(7, (index) {
+            final days = ['월', '화', '수', '목', '금', '토', '일'];
+            final isSelected = _selectedDays.contains(index);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedDays.remove(index);
+                  } else {
+                    _selectedDays.add(index);
+                  }
+                });
+              },
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF667EEA)
+                      : (widget.isDarkMode
+                            ? Colors.grey[800]
+                            : Colors.grey[100]),
+                  borderRadius: BorderRadius.circular(12),
+                  border: isSelected
+                      ? null
+                      : Border.all(
+                          color: widget.isDarkMode
+                              ? Colors.grey[700]!
+                              : Colors.grey[300]!,
+                        ),
+                ),
+                child: Center(
+                  child: Text(
+                    days[index],
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : (widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[700]),
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 검색창
+        TextField(
+          controller: _searchController,
+          style: TextStyle(
+            color: widget.isDarkMode ? Colors.white : Colors.black,
+          ),
+          decoration: InputDecoration(
+            hintText: '운동 검색...',
+            hintStyle: TextStyle(
+              color: widget.isDarkMode ? Colors.grey[600] : Colors.grey[400],
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: widget.isDarkMode
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearchChanged();
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: widget.isDarkMode ? Colors.grey[800] : Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 선택된 운동 표시
+        if (_selectedExercises.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '선택된 운동 (${_selectedExercises.length}개)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: widget.isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+              Text(
+                '드래그하여 순서 변경',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: widget.isDarkMode
+                      ? Colors.grey[500]
+                      : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: widget.isDarkMode ? Colors.grey[850] : Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: widget.isDarkMode
+                    ? Colors.grey[800]!
+                    : Colors.grey[200]!,
+              ),
+            ),
+            child: ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _selectedExercises.length,
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) {
+                    newIndex -= 1;
+                  }
+                  final item = _selectedExercises.removeAt(oldIndex);
+                  _selectedExercises.insert(newIndex, item);
+                });
+              },
+              itemBuilder: (context, index) {
+                final exercise = _selectedExercises[index];
+                return Container(
+                  key: ValueKey(exercise),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF667EEA).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF667EEA).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.drag_handle,
+                          color: widget.isDarkMode
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF667EEA),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.getText(exercise, widget.language),
+                            style: TextStyle(
+                              color: widget.isDarkMode
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          color: widget.isDarkMode
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
+                          onPressed: () {
+                            setState(() {
+                              _selectedExercises.remove(exercise);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // 운동 리스트
+        ...(_filteredExercises.isEmpty
+            ? [
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(
+                      '검색 결과가 없습니다',
+                      style: TextStyle(
+                        color: widget.isDarkMode
+                            ? Colors.grey[500]
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ),
+              ]
+            : _filteredExercises.map((exercise) {
+                final isSelected = _selectedExercises.contains(exercise);
+                final isFavorite = widget.favoriteExercises.contains(exercise);
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFF667EEA).withOpacity(0.1)
+                        : (widget.isDarkMode
+                              ? Colors.grey[850]
+                              : Colors.grey[50]),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFF667EEA)
+                          : (widget.isDarkMode
+                                ? Colors.grey[800]!
+                                : Colors.grey[200]!),
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: CheckboxListTile(
+                    title: Row(
+                      children: [
+                        if (isFavorite)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.getText(exercise, widget.language),
+                            style: TextStyle(
+                              color: widget.isDarkMode
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    value: isSelected,
+                    activeColor: const Color(0xFF667EEA),
+                    onChanged: (bool? value) {
+                      setState(() {
+                        if (value == true) {
+                          _selectedExercises.add(exercise);
+                        } else {
+                          _selectedExercises.remove(exercise);
+                        }
+                      });
+                    },
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                );
+              }).toList()),
+      ],
+    );
+  }
+}
+
+// 루틴 분석 다이얼로그
+class _RoutineAnalysisDialog extends StatelessWidget {
+  final Map<String, dynamic> routine;
+  final bool isDarkMode;
+  final String language;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _RoutineAnalysisDialog({
+    required this.routine,
+    required this.isDarkMode,
+    required this.language,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  Map<String, int> _analyzeBodyParts() {
+    final exercises = (routine['exercises'] as List<dynamic>).cast<String>();
+    final bodyParts = <String, int>{
+      'upper': 0, // 상체
+      'lower': 0, // 하체
+      'core': 0, // 코어
+      'cardio': 0, // 유산소
+      'flexibility': 0, // 유연성
+    };
+
+    // 운동별 신체 부위 매핑
+    final exerciseBodyParts = {
+      // 상체
+      'push_up': 'upper',
+      'bench_press': 'upper',
+      'dumbbell_fly': 'upper',
+      'shoulder_press': 'upper',
+      'bicep_curl': 'upper',
+      'tricep_dips': 'upper',
+      'pull_up': 'upper',
+      'chin_up': 'upper',
+      'overhead_extension': 'upper',
+      'lateral_raise': 'upper',
+      'front_raise': 'upper',
+      'arnold_press': 'upper',
+      'hammer_curl': 'upper',
+      'concentration_curl': 'upper',
+      'skull_crusher': 'upper',
+      'chest_press': 'upper',
+      'incline_press': 'upper',
+      'decline_press': 'upper',
+      'cable_crossover': 'upper',
+      'pec_deck': 'upper',
+      'tricep_pushdown': 'upper',
+      'rope_pulldown': 'upper',
+      'overhead_tricep': 'upper',
+      'lat_pulldown': 'upper',
+      'bent_over_row': 'upper',
+      'single_arm_row': 'upper',
+      'seated_row': 'upper',
+      't_bar_row': 'upper',
+      'face_pull': 'upper',
+      'reverse_fly': 'upper',
+      'shrug': 'upper',
+
+      // 하체
+      'squat': 'lower',
+      'lunges': 'lower',
+      'deadlift': 'lower',
+      'leg_press': 'lower',
+      'leg_extension': 'lower',
+      'leg_curl': 'lower',
+      'calf_raise': 'lower',
+      'glute_bridge': 'lower',
+      'wall_sit': 'lower',
+      'romanian_deadlift': 'lower',
+      'sumo_deadlift': 'lower',
+      'front_squat': 'lower',
+      'goblet_squat': 'lower',
+      'bulgarian_split_squat': 'lower',
+      'hip_thrust': 'lower',
+      'step_up': 'lower',
+
+      // 코어
+      'plank': 'core',
+      'sit_up': 'core',
+      'crunches': 'core',
+      'side_plank': 'core',
+      'bicycle_crunch': 'core',
+      'russian_twist': 'core',
+      'leg_raise': 'core',
+      'flutter_kicks': 'core',
+      'scissors_kicks': 'core',
+      'v_up': 'core',
+      'hollow_hold': 'core',
+      'dead_bug': 'core',
+      'bird_dog': 'core',
+      'plank_up_down': 'core',
+      'plank_jack': 'core',
+      'ab_wheel': 'core',
+      'hanging_leg_raise': 'core',
+
+      // 유산소
+      'burpees': 'cardio',
+      'jumping_jacks': 'cardio',
+      'high_knees': 'cardio',
+      'butt_kicks': 'cardio',
+      'mountain_climber': 'cardio',
+      'running': 'cardio',
+      'jogging': 'cardio',
+      'sprints': 'cardio',
+      'jump_rope': 'cardio',
+      'box_jump': 'cardio',
+      'bear_crawl': 'cardio',
+      'crab_walk': 'cardio',
+      'shuttle_run': 'cardio',
+      'stair_climb': 'cardio',
+      'depth_jump': 'cardio',
+      'broad_jump': 'cardio',
+      'tuck_jump': 'cardio',
+      'split_jump': 'cardio',
+      'lateral_bound': 'cardio',
+      'single_leg_hop': 'cardio',
+      'plyo_push_up': 'cardio',
+
+      // 유연성
+      'sun_salutation': 'flexibility',
+      'downward_dog': 'flexibility',
+      'upward_dog': 'flexibility',
+      'warrior_pose': 'flexibility',
+      'warrior_2': 'flexibility',
+      'warrior_3': 'flexibility',
+      'tree_pose': 'flexibility',
+      'child_pose': 'flexibility',
+      'cobra_pose': 'flexibility',
+      'bridge_pose': 'flexibility',
+      'cat_cow': 'flexibility',
+      'pigeon_pose': 'flexibility',
+      'triangle_pose': 'flexibility',
+      'half_moon': 'flexibility',
+      'chair_pose': 'flexibility',
+      'boat_pose': 'flexibility',
+      'bow_pose': 'flexibility',
+      'camel_pose': 'flexibility',
+      'fish_pose': 'flexibility',
+      'seated_forward_bend': 'flexibility',
+      'spinal_twist': 'flexibility',
+    };
+
+    for (final exercise in exercises) {
+      final bodyPart = exerciseBodyParts[exercise];
+      if (bodyPart != null) {
+        bodyParts[bodyPart] = (bodyParts[bodyPart] ?? 0) + 1;
+      }
+    }
+
+    return bodyParts;
+  }
+
+  String _getPrimaryFocus() {
+    final bodyParts = _analyzeBodyParts();
+    final maxEntry = bodyParts.entries.reduce(
+      (a, b) => a.value > b.value ? a : b,
+    );
+
+    final focusNames = {
+      'upper': '상체 집중',
+      'lower': '하체 집중',
+      'core': '코어 집중',
+      'cardio': '유산소 집중',
+      'flexibility': '유연성 집중',
+    };
+
+    return focusNames[maxEntry.key] ?? '균형 운동';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final exercises = (routine['exercises'] as List<dynamic>).cast<String>();
+    final bodyParts = _analyzeBodyParts();
+    final totalExercises = exercises.length;
+    final primaryFocus = _getPrimaryFocus();
+
+    // 예상 운동 시간 계산 (운동당 3분 가정)
+    final estimatedTime = totalExercises * 3;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.9,
+        ),
+        decoration: BoxDecoration(
+          color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 헤더
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.analytics, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      routine['name'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+
+            // 내용
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 통계 카드들
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.fitness_center,
+                            label: '총 운동',
+                            value: '$totalExercises개',
+                            color: const Color(0xFF667EEA),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.timer,
+                            label: '예상 시간',
+                            value: '~$estimatedTime분',
+                            color: const Color(0xFF43E97B),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.psychology,
+                            label: '집중 부위',
+                            value: primaryFocus,
+                            color: const Color(0xFFF093FB),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            icon: Icons.calendar_month,
+                            label: '사용 횟수',
+                            value: '0회', // TODO: 실제 사용 횟수 추적
+                            color: const Color(0xFF4FACFE),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // 신체 부위 분석
+                    Text(
+                      '신체 부위 분석',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildBodyPartChart(bodyParts, totalExercises),
+
+                    const SizedBox(height: 24),
+
+                    // 운동 목록
+                    Text(
+                      '포함된 운동 (${exercises.length}개)',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...exercises.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final exercise = entry.value;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? Colors.grey[850]
+                              : Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDarkMode
+                                ? Colors.grey[800]!
+                                : Colors.grey[200]!,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF667EEA),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                AppLocalizations.getText(exercise, language),
+                                style: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : Colors.black87,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            ),
+
+            // 하단 버튼들
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[900] : Colors.grey[50],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: isDarkMode
+                                ? Colors.grey[800]
+                                : Colors.white,
+                            title: Text(
+                              '루틴 삭제',
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
+                            ),
+                            content: Text(
+                              '이 루틴을 삭제하시겠습니까?',
+                              style: TextStyle(
+                                color: isDarkMode
+                                    ? Colors.grey[300]
+                                    : Colors.grey[700],
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('취소'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  onDelete();
+                                },
+                                child: const Text(
+                                  '삭제',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      label: const Text('삭제'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit, size: 20),
+                      label: const Text('수정'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF667EEA),
+                        side: const BorderSide(color: Color(0xFF667EEA)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        // TODO: 루틴 시작 로직
+                      },
+                      icon: const Icon(Icons.play_arrow, size: 20),
+                      label: const Text('시작'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF667EEA),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: isDarkMode ? Colors.white : Colors.black87,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBodyPartChart(Map<String, int> bodyParts, int total) {
+    final bodyPartNames = {
+      'upper': '상체',
+      'lower': '하체',
+      'core': '코어',
+      'cardio': '유산소',
+      'flexibility': '유연성',
+    };
+
+    final bodyPartColors = {
+      'upper': const Color(0xFF667EEA),
+      'lower': const Color(0xFF43E97B),
+      'core': const Color(0xFFF093FB),
+      'cardio': const Color(0xFF4FACFE),
+      'flexibility': const Color(0xFFFA709A),
+    };
+
+    return Column(
+      children: bodyParts.entries.where((e) => e.value > 0).map((entry) {
+        final percentage = (entry.value / total * 100).toInt();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    bodyPartNames[entry.key]!,
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '$percentage% (${entry.value}개)',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: percentage / 100,
+                  backgroundColor: isDarkMode
+                      ? Colors.grey[800]
+                      : Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    bodyPartColors[entry.key]!,
+                  ),
+                  minHeight: 8,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }
