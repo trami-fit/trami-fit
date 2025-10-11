@@ -40,11 +40,17 @@ post_install do |installer|
   installer.pods_project.targets.each do |t|
     flutter_additional_ios_build_settings(t)
     t.build_configurations.each do |c|
-      if c.name == 'Debug'
-        c.build_settings['CODE_SIGNING_ALLOWED']  = 'NO'
-        c.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
-        c.build_settings['CODE_SIGNING_IDENTITY'] = '-'
-      end
+      # Fix code signing issues for all configurations
+      c.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+      c.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+      c.build_settings['CODE_SIGNING_IDENTITY'] = ''
+      
+      # Ensure proper architecture settings
+      c.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
+      c.build_settings['EXCLUDED_ARCHS[sdk=iphoneos*]'] = 'armv7'
+      
+      # Fix deployment target
+      c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
     end
   end
 end

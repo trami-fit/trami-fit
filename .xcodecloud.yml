@@ -2,15 +2,22 @@ version: 1.0
 steps:
   - name: Setup Flutter
     script: |
+      echo "🔧 Starting Flutter setup..."
       git clone https://github.com/flutter/flutter.git -b stable
       export PATH="$PATH:`pwd`/flutter/bin"
       flutter doctor
       flutter pub get
       flutter precache --ios
+      echo "🍎 Setting up iOS dependencies..."
       cd ios
       pod repo update
       pod install
+      echo "🔍 Verifying installation..."
+      ls -la Flutter/
+      ls -la "Pods/Target Support Files/Pods-Runner/"
       cd ..
+      echo "✅ Setup complete!"
   - name: Build iOS
     script: |
+      echo "🚀 Starting iOS build..."
       flutter build ios --release --no-codesign
