@@ -7,6 +7,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'firebase_options.dart';
 
 // 언어별 번역 클래스
@@ -57,6 +60,7 @@ class AppLocalizations {
       'backup': 'データバックアップ',
       'backup_subtitle': 'データの保存と復元',
       'logout': 'ログアウト',
+      'logout_confirm': 'ログアウトしますか？',
       'logout_subtitle': 'アカウントからサインアウト',
       'help': 'ヘルプとサポート',
       'help_subtitle': 'よくある質問とサポート',
@@ -261,6 +265,7 @@ class AppLocalizations {
       'backup': '데이터 백업',
       'backup_subtitle': '데이터 저장 및 복원',
       'logout': '로그아웃',
+      'logout_confirm': '로그아웃하시겠습니까?',
       'logout_subtitle': '계정에서 로그아웃',
       'help': '도움말 및 지원',
       'help_subtitle': '자주 묻는 질문 및 지원',
@@ -465,6 +470,7 @@ class AppLocalizations {
       'backup': 'Data Backup',
       'backup_subtitle': 'Data save and restore',
       'logout': 'Logout',
+      'logout_confirm': 'Are you sure you want to logout?',
       'logout_subtitle': 'Sign out from account',
       'help': 'Help & Support',
       'help_subtitle': 'FAQ and support',
@@ -633,21 +639,21 @@ class AppLocalizations {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Firebase 초기화
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   // Remote Config 초기화
   final remoteConfig = FirebaseRemoteConfig.instance;
-  await remoteConfig.setConfigSettings(RemoteConfigSettings(
-    fetchTimeout: const Duration(minutes: 1),
-    minimumFetchInterval: const Duration(hours: 1),
-  ));
+  await remoteConfig.setConfigSettings(
+    RemoteConfigSettings(
+      fetchTimeout: const Duration(minutes: 1),
+      minimumFetchInterval: const Duration(hours: 1),
+    ),
+  );
   await remoteConfig.fetchAndActivate();
-  
-  runApp(const TramiApp());
+
+  runApp(const AuthWrapper());
 }
 
 class TramiApp extends StatelessWidget {
@@ -3955,9 +3961,11 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final user = FirebaseService.currentUser;
+    
     setState(() {
-      _userName = prefs.getString('user_name') ?? 'ユーザー';
-      _userEmail = prefs.getString('user_email') ?? 'user@example.com';
+      _userName = user?.displayName ?? prefs.getString('user_name') ?? 'ユーザー';
+      _userEmail = user?.email ?? prefs.getString('user_email') ?? 'user@example.com';
     });
   }
 
@@ -4111,6 +4119,56 @@ class _SettingScreenState extends State<SettingScreen> {
                 ),
               ],
             ),
+
+            const SizedBox(height: 24),
+
+            // 로그아웃 버튼
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final bool? confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text(AppLocalizations.getText('logout', widget.language)),
+                        content: Text(AppLocalizations.getText('logout_confirm', widget.language)),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: Text(AppLocalizations.getText('cancel', widget.language)),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: Text(AppLocalizations.getText('logout', widget.language)),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (confirm == true) {
+                    await FirebaseService.signOut();
+                    // AuthWrapper가 자동으로 로그인 화면으로 전환합니다
+                  }
+                },
+                icon: const Icon(Icons.logout, color: Colors.white),
+                label: Text(
+                  AppLocalizations.getText('logout', widget.language),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -5773,25 +5831,36 @@ class _RoutineAnalysisDialog extends StatelessWidget {
   }
 }
 
-
 // Firebase 서비스 헬퍼 클래스
 class FirebaseService {
   static final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseRemoteConfig _remoteConfig = FirebaseRemoteConfig.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Analytics 이벤트 로깅
-  static Future<void> logEvent(String name, {Map<String, dynamic>? parameters}) async {
+  static Future<void> logEvent(
+    String name, {
+    Map<String, Object>? parameters,
+  }) async {
     await _analytics.logEvent(name: name, parameters: parameters);
   }
 
   // Firestore 데이터 저장
-  static Future<void> saveData(String collection, String docId, Map<String, dynamic> data) async {
+  static Future<void> saveData(
+    String collection,
+    String docId,
+    Map<String, dynamic> data,
+  ) async {
     await _firestore.collection(collection).doc(docId).set(data);
   }
 
   // Firestore 데이터 읽기
-  static Future<DocumentSnapshot> getData(String collection, String docId) async {
+  static Future<DocumentSnapshot> getData(
+    String collection,
+    String docId,
+  ) async {
     return await _firestore.collection(collection).doc(docId).get();
   }
 
@@ -5806,5 +5875,294 @@ class FirebaseService {
 
   static int getRemoteConfigInt(String key, {int defaultValue = 0}) {
     return _remoteConfig.getInt(key);
+  }
+
+  // 현재 사용자 가져오기
+  static User? get currentUser => _auth.currentUser;
+
+  // 로그인 상태 스트림
+  static Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // Google 로그인
+  static Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      
+      // Analytics 이벤트 로깅
+      await logEvent('login', parameters: {'method': 'google'});
+      
+      return userCredential;
+    } catch (e) {
+      print('Google 로그인 오류: $e');
+      return null;
+    }
+  }
+
+  // Apple 로그인
+  static Future<UserCredential?> signInWithApple() async {
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final userCredential = await _auth.signInWithCredential(oauthCredential);
+      
+      // Analytics 이벤트 로깅
+      await logEvent('login', parameters: {'method': 'apple'});
+      
+      return userCredential;
+    } catch (e) {
+      print('Apple 로그인 오류: $e');
+      return null;
+    }
+  }
+
+  // 로그아웃
+  static Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+    
+    // Analytics 이벤트 로깅
+    await logEvent('logout');
+  }
+
+  // 사용자 정보 Firestore에 저장
+  static Future<void> saveUserData(User user) async {
+    final userData = {
+      'uid': user.uid,
+      'email': user.email,
+      'displayName': user.displayName,
+      'photoURL': user.photoURL,
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastLoginAt': FieldValue.serverTimestamp(),
+    };
+
+    await _firestore.collection('users').doc(user.uid).set(
+      userData,
+      SetOptions(merge: true),
+    );
+  }
+}
+
+
+// 로그인 화면 위젯
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = false;
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final userCredential = await FirebaseService.signInWithGoogle();
+      if (userCredential?.user != null) {
+        await FirebaseService.saveUserData(userCredential!.user!);
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const TramiApp()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google 로그인 실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final userCredential = await FirebaseService.signInWithApple();
+      if (userCredential?.user != null) {
+        await FirebaseService.saveUserData(userCredential!.user!);
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const TramiApp()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Apple 로그인 실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF87CEEB),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 앱 로고/제목
+              const Icon(
+                Icons.fitness_center,
+                size: 80,
+                color: Colors.white,
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Trami',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '피트니스를 위한 완벽한 동반자',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 64),
+              
+              // Google 로그인 버튼
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _signInWithGoogle,
+                  icon: Image.asset(
+                    'assets/images/google_logo.png',
+                    width: 20,
+                    height: 20,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.login, color: Colors.white);
+                    },
+                  ),
+                  label: const Text(
+                    'Google로 계속하기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black87,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Apple 로그인 버튼
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _signInWithApple,
+                  icon: const Icon(
+                    Icons.apple,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Apple로 계속하기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              
+              if (_isLoading) ...[
+                const SizedBox(height: 24),
+                const CircularProgressIndicator(color: Colors.white),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// 인증 상태에 따른 화면 전환 위젯
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Trami',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF87CEEB)),
+        useMaterial3: true,
+        fontFamily: 'NotoSans',
+      ),
+      home: StreamBuilder<User?>(
+        stream: FirebaseService.authStateChanges,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          
+          if (snapshot.hasData) {
+            return const TramiApp();
+          } else {
+            return const LoginScreen();
+          }
+        },
+      ),
+    );
   }
 }
