@@ -1,6 +1,6 @@
 version: 1.0
 steps:
-  - name: Setup Flutter
+  - name: Setup Flutter and Dependencies
     script: |
       echo "🔧 Starting Flutter setup..."
       git clone https://github.com/flutter/flutter.git -b stable
@@ -15,9 +15,4 @@ steps:
       echo "🔍 Verifying installation..."
       ls -la Flutter/
       ls -la "Pods/Target Support Files/Pods-Runner/"
-      cd ..
       echo "✅ Setup complete!"
-  - name: Build iOS
-    script: |
-      echo "🚀 Starting iOS build..."
-      flutter build ios --release --no-codesign
