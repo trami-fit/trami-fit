@@ -3962,10 +3962,11 @@ class _SettingScreenState extends State<SettingScreen> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final user = FirebaseService.currentUser;
-    
+
     setState(() {
       _userName = user?.displayName ?? prefs.getString('user_name') ?? 'ユーザー';
-      _userEmail = user?.email ?? prefs.getString('user_email') ?? 'user@example.com';
+      _userEmail =
+          user?.email ?? prefs.getString('user_email') ?? 'user@example.com';
     });
   }
 
@@ -4132,16 +4133,33 @@ class _SettingScreenState extends State<SettingScreen> {
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: Text(AppLocalizations.getText('logout', widget.language)),
-                        content: Text(AppLocalizations.getText('logout_confirm', widget.language)),
+                        title: Text(
+                          AppLocalizations.getText('logout', widget.language),
+                        ),
+                        content: Text(
+                          AppLocalizations.getText(
+                            'logout_confirm',
+                            widget.language,
+                          ),
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(false),
-                            child: Text(AppLocalizations.getText('cancel', widget.language)),
+                            child: Text(
+                              AppLocalizations.getText(
+                                'cancel',
+                                widget.language,
+                              ),
+                            ),
                           ),
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
-                            child: Text(AppLocalizations.getText('logout', widget.language)),
+                            child: Text(
+                              AppLocalizations.getText(
+                                'logout',
+                                widget.language,
+                              ),
+                            ),
                           ),
                         ],
                       );
@@ -5835,9 +5853,13 @@ class _RoutineAnalysisDialog extends StatelessWidget {
 class FirebaseService {
   static final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseRemoteConfig _remoteConfig = FirebaseRemoteConfig.instance;
+  static final FirebaseRemoteConfig _remoteConfig =
+      FirebaseRemoteConfig.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final GoogleSignIn _googleSignIn = GoogleSignIn();
+  // Google Sign In은 일시적으로 비활성화
+  // static final GoogleSignIn _googleSignIn = GoogleSignIn(
+  //   scopes: ['email', 'profile'],
+  // );
 
   // Analytics 이벤트 로깅
   static Future<void> logEvent(
@@ -5883,24 +5905,12 @@ class FirebaseService {
   // 로그인 상태 스트림
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Google 로그인
+  // Google 로그인 (일시적으로 비활성화)
   static Future<UserCredential?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-      
-      // Analytics 이벤트 로깅
-      await logEvent('login', parameters: {'method': 'google'});
-      
-      return userCredential;
+      // Google Sign In API 문제로 인해 일시적으로 비활성화
+      print('Google 로그인은 현재 사용할 수 없습니다.');
+      return null;
     } catch (e) {
       print('Google 로그인 오류: $e');
       return null;
@@ -5923,10 +5933,10 @@ class FirebaseService {
       );
 
       final userCredential = await _auth.signInWithCredential(oauthCredential);
-      
+
       // Analytics 이벤트 로깅
       await logEvent('login', parameters: {'method': 'apple'});
-      
+
       return userCredential;
     } catch (e) {
       print('Apple 로그인 오류: $e');
@@ -5936,9 +5946,9 @@ class FirebaseService {
 
   // 로그아웃
   static Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    // await _googleSignIn.signOut();
     await _auth.signOut();
-    
+
     // Analytics 이벤트 로깅
     await logEvent('logout');
   }
@@ -5954,13 +5964,12 @@ class FirebaseService {
       'lastLoginAt': FieldValue.serverTimestamp(),
     };
 
-    await _firestore.collection('users').doc(user.uid).set(
-      userData,
-      SetOptions(merge: true),
-    );
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .set(userData, SetOptions(merge: true));
   }
 }
-
 
 // 로그인 화면 위젯
 class LoginScreen extends StatefulWidget {
@@ -5975,7 +5984,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final userCredential = await FirebaseService.signInWithGoogle();
       if (userCredential?.user != null) {
@@ -5988,9 +5997,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google 로그인 실패: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Google 로그인 실패: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -5999,7 +6008,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signInWithApple() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final userCredential = await FirebaseService.signInWithApple();
       if (userCredential?.user != null) {
@@ -6012,9 +6021,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Apple 로그인 실패: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Apple 로그인 실패: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -6032,11 +6041,7 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // 앱 로고/제목
-              const Icon(
-                Icons.fitness_center,
-                size: 80,
-                color: Colors.white,
-              ),
+              const Icon(Icons.fitness_center, size: 80, color: Colors.white),
               const SizedBox(height: 24),
               const Text(
                 'Trami',
@@ -6049,64 +6054,51 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               const Text(
                 '피트니스를 위한 완벽한 동반자',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 64),
-              
-              // Google 로그인 버튼
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _signInWithGoogle,
-                  icon: Image.asset(
-                    'assets/images/google_logo.png',
-                    width: 20,
-                    height: 20,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.login, color: Colors.white);
-                    },
-                  ),
-                  label: const Text(
-                    'Google로 계속하기',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black87,
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
+
+                // Google 로그인 버튼 (일시적으로 비활성화)
+                // SizedBox(
+                //   width: double.infinity,
+                //   height: 50,
+                //   child: ElevatedButton.icon(
+                //     onPressed: _isLoading ? null : _signInWithGoogle,
+                //     icon: Image.asset(
+                //       'assets/images/google_logo.png',
+                //       width: 20,
+                //       height: 20,
+                //       errorBuilder: (context, error, stackTrace) {
+                //         return const Icon(Icons.login, color: Colors.white);
+                //       },
+                //     ),
+                //     label: const Text(
+                //       'Google로 계속하기',
+                //       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                //     ),
+                //     style: ElevatedButton.styleFrom(
+                //       backgroundColor: Colors.white,
+                //       foregroundColor: Colors.black87,
+                //       elevation: 2,
+                //       shape: RoundedRectangleBorder(
+                //         borderRadius: BorderRadius.circular(8),
+                //       ),
+                //     ),
+                //   ),
+                // ),
+
+                // const SizedBox(height: 16),
+
               // Apple 로그인 버튼
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
                   onPressed: _isLoading ? null : _signInWithApple,
-                  icon: const Icon(
-                    Icons.apple,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  icon: const Icon(Icons.apple, color: Colors.white, size: 20),
                   label: const Text(
                     'Apple로 계속하기',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
@@ -6118,7 +6110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              
+
               if (_isLoading) ...[
                 const SizedBox(height: 24),
                 const CircularProgressIndicator(color: Colors.white),
@@ -6130,7 +6122,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
 
 // 인증 상태에 따른 화면 전환 위젯
 class AuthWrapper extends StatelessWidget {
@@ -6150,12 +6141,10 @@ class AuthWrapper extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+              body: Center(child: CircularProgressIndicator()),
             );
           }
-          
+
           if (snapshot.hasData) {
             return const TramiApp();
           } else {
