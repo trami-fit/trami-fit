@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'firebase_options.dart';
 
 // 언어별 번역 클래스
 class AppLocalizations {
@@ -626,7 +631,22 @@ class AppLocalizations {
   }
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Firebase 초기화
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  // Remote Config 초기화
+  final remoteConfig = FirebaseRemoteConfig.instance;
+  await remoteConfig.setConfigSettings(RemoteConfigSettings(
+    fetchTimeout: const Duration(minutes: 1),
+    minimumFetchInterval: const Duration(hours: 1),
+  ));
+  await remoteConfig.fetchAndActivate();
+  
   runApp(const TramiApp());
 }
 
@@ -4469,8 +4489,8 @@ class _CreateRoutineDialogState extends State<_CreateRoutineDialog> {
   int _currentStep = 0;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
-  Set<int> _selectedDays = {};
-  List<String> _selectedExercises = [];
+  final Set<int> _selectedDays = {};
+  final List<String> _selectedExercises = [];
   List<String> _filteredExercises = [];
 
   @override
@@ -5531,7 +5551,7 @@ class _RoutineAnalysisDialog extends StatelessWidget {
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),
@@ -5750,5 +5770,41 @@ class _RoutineAnalysisDialog extends StatelessWidget {
         );
       }).toList(),
     );
+  }
+}
+
+
+// Firebase 서비스 헬퍼 클래스
+class FirebaseService {
+  static final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseRemoteConfig _remoteConfig = FirebaseRemoteConfig.instance;
+
+  // Analytics 이벤트 로깅
+  static Future<void> logEvent(String name, {Map<String, dynamic>? parameters}) async {
+    await _analytics.logEvent(name: name, parameters: parameters);
+  }
+
+  // Firestore 데이터 저장
+  static Future<void> saveData(String collection, String docId, Map<String, dynamic> data) async {
+    await _firestore.collection(collection).doc(docId).set(data);
+  }
+
+  // Firestore 데이터 읽기
+  static Future<DocumentSnapshot> getData(String collection, String docId) async {
+    return await _firestore.collection(collection).doc(docId).get();
+  }
+
+  // Remote Config 값 가져오기
+  static String getRemoteConfigString(String key, {String defaultValue = ''}) {
+    return _remoteConfig.getString(key);
+  }
+
+  static bool getRemoteConfigBool(String key, {bool defaultValue = false}) {
+    return _remoteConfig.getBool(key);
+  }
+
+  static int getRemoteConfigInt(String key, {int defaultValue = 0}) {
+    return _remoteConfig.getInt(key);
   }
 }
