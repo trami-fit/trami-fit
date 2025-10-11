@@ -1,0 +1,16 @@
+version: 1.0
+steps:
+  - name: Setup Flutter
+    script: |
+      git clone https://github.com/flutter/flutter.git -b stable
+      export PATH="$PATH:`pwd`/flutter/bin"
+      flutter doctor
+      flutter pub get
+      flutter precache --ios
+      cd ios
+      pod repo update
+      pod install
+      cd ..
+  - name: Build iOS
+    script: |
+      flutter build ios --release --no-codesign
