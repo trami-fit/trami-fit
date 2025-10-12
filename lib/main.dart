@@ -957,6 +957,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<WeightRecord> _weightRecords = []; // 몸무게 기록
   DateTime? _nextWorkoutDate;
   List<DateTime> _scheduledDays = [];
+  List<DateTime> _excludedDays = []; // 고정요일에서 제외된 날짜들
   // _countdownProgress 변수 제거됨
 
   @override
@@ -1037,6 +1038,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final scheduledJson = prefs.getStringList('scheduled_workout_days') ?? [];
     _scheduledDays = scheduledJson.map((e) => DateTime.parse(e)).toList();
 
+    // 제외된 날짜들 로드
+    final excludedJson = prefs.getStringList('excluded_days') ?? [];
+    _excludedDays = excludedJson.map((e) => DateTime.parse(e)).toList();
+
     // 루틴 데이터 로드
     final routinesJson = prefs.getStringList('routines') ?? [];
     _routines = routinesJson
@@ -1078,6 +1083,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await prefs.setStringList(
       'scheduled_workout_days',
       _scheduledDays
+          .map((e) => DateTime(e.year, e.month, e.day).toIso8601String())
+          .toList(),
+    );
+
+    // 제외된 날짜들 저장
+    await prefs.setStringList(
+      'excluded_days',
+      _excludedDays
           .map((e) => DateTime(e.year, e.month, e.day).toIso8601String())
           .toList(),
     );
@@ -1382,52 +1395,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              child: Container(
+        return Dialog(
+          backgroundColor: Colors.transparent,
+            child: Container(
                 width: MediaQuery.of(context).size.width - 10,
                 height: MediaQuery.of(context).size.height * 0.65,
-                decoration: BoxDecoration(
-                  color: widget.isDarkMode
-                      ? const Color(0xFF1E1E1E)
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Close button only
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.close, size: 20),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.grey[300],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+              decoration: BoxDecoration(
+                color: widget.isDarkMode
+                    ? const Color(0xFF1E1E1E)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Close button only
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close, size: 20),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    // Calendar content
-                    Flexible(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Column(
-                          children: [
+                  ),
+                  // Calendar content
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Column(
+                        children: [
                             TableCalendar<String>(
                               firstDay: DateTime.utc(2020, 1, 1),
                               lastDay: DateTime.utc(2030, 12, 31),
@@ -1510,6 +1523,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     day.weekday % 7,
                                   );
 
+                                  // 제외된 날짜인지 확인
+                                  final isExcluded = _excludedDays.any(
+                                    (excludedDay) => isSameDay(excludedDay, day),
+                                  );
+
                                   // 개별 선택된 날짜 표시
                                   final isIndividuallySelected = _scheduledDays
                                       .any(
@@ -1517,7 +1535,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             isSameDay(scheduledDay, day),
                                       );
 
-                                  if (isFixedDay || isIndividuallySelected) {
+                                  // 고정요일이지만 제외된 경우는 표시하지 않음
+                                  // 또는 개별적으로 선택된 경우 표시
+                                  final shouldShow = (isFixedDay && !isExcluded) || 
+                                                     (!isFixedDay && isIndividuallySelected);
+
+                                  if (shouldShow) {
                                     return Container(
                                       margin: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
@@ -1545,20 +1568,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               onDaySelected: (selectedDay, focusedDay) {
                                 setDialogState(() {
                                   setState(() {
-                                    // 개별 날짜 선택/해제
-                                    final isAlreadySelected = _scheduledDays
-                                        .any(
+                                    final isFixedDay = _fixedWorkoutDays.contains(
+                                      selectedDay.weekday % 7,
+                                    );
+                                    final isExcluded = _excludedDays.any(
+                                      (day) => isSameDay(day, selectedDay),
+                                    );
+                                    final isIndividuallySelected = _scheduledDays.any(
+                                      (day) => isSameDay(day, selectedDay),
+                                    );
+
+                                    if (isFixedDay) {
+                                      // 고정요일인 경우
+                                      if (isExcluded) {
+                                        // 제외 목록에서 제거 (다시 파란색으로)
+                                        _excludedDays.removeWhere(
                                           (day) => isSameDay(day, selectedDay),
                                         );
-
-                                    if (isAlreadySelected) {
-                                      // 이미 선택된 날짜면 해제
-                                      _scheduledDays.removeWhere(
-                                        (day) => isSameDay(day, selectedDay),
-                                      );
+                                      } else {
+                                        // 제외 목록에 추가 (하얀색으로)
+                                        _excludedDays.add(selectedDay);
+                                      }
                                     } else {
-                                      // 선택되지 않은 날짜면 추가
-                                      _scheduledDays.add(selectedDay);
+                                      // 고정요일이 아닌 경우
+                                      if (isIndividuallySelected) {
+                                        // 이미 선택된 날짜면 해제
+                                        _scheduledDays.removeWhere(
+                                          (day) => isSameDay(day, selectedDay),
+                                        );
+                                      } else {
+                                        // 선택되지 않은 날짜면 추가
+                                        _scheduledDays.add(selectedDay);
+                                      }
                                     }
 
                                     _selectedDay = selectedDay;
@@ -1571,41 +1612,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               selectedDayPredicate: (day) {
                                 return isSameDay(_selectedDay, day);
                               },
+                          ),
+                          const SizedBox(height: 8),
+                          // Fixed workout days section
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: widget.isDarkMode
+                                  ? const Color(0xFF2A2A2A)
+                                  : Colors.grey[50],
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(height: 8),
-                            // Fixed workout days section
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: widget.isDarkMode
-                                    ? const Color(0xFF2A2A2A)
-                                    : Colors.grey[50],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.schedule,
-                                        color: const Color(0xFF87CEEB),
-                                        size: 16,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.schedule,
+                                      color: const Color(0xFF87CEEB),
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '고정 운동일',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: widget.isDarkMode
+                                            ? Colors.white
+                                            : Colors.black87,
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '고정 운동일',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: widget.isDarkMode
-                                              ? Colors.white
-                                              : Colors.black87,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceEvenly,
@@ -1641,18 +1682,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                               setDialogState(() {
                                                 if (selected) {
                                                   _fixedWorkoutDays.remove(
-                                                    index,
+                                                  index,
                                                   );
                                                 } else {
                                                   _fixedWorkoutDays.add(index);
-                                                }
-                                                _fixedWorkoutDays.sort();
+                                              }
+                                              _fixedWorkoutDays.sort();
                                               });
                                               setState(() {
-                                                _saveData();
-                                                _calculateNextWorkoutDate();
-                                              });
-                                            },
+                                              _saveData();
+                                              _calculateNextWorkoutDate();
+                                            });
+                                          },
                                             child: Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -1662,7 +1703,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                                 color: selected
                                                     ? const Color(0xFF87CEEB)
                                                     : (widget.isDarkMode
-                                                          ? Colors.grey[700]
+                                              ? Colors.grey[700]
                                                           : Colors.grey[200]),
                                                 borderRadius:
                                                     BorderRadius.circular(8),
@@ -1687,15 +1728,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     }),
                                   ),
                                 ],
-                              ),
-                            ),
-                          ],
+                                  ),
+                                ),
+                              ],
                         ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
             );
           },
         );
@@ -1746,9 +1787,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   prefixIcon: const Icon(Icons.monitor_weight_outlined),
                 ),
                 autofocus: true,
+                  ),
+                ],
               ),
-            ],
-          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -1881,7 +1922,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 width: MediaQuery.of(context).size.width * 0.9,
                 padding: const EdgeInsets.all(30),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
                       '固定運動日設定',
@@ -1916,7 +1957,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     setState(() {
                                       if (isSelected) {
                                         _fixedWorkoutDays.remove(index);
-                                      } else {
+                        } else {
                                         _fixedWorkoutDays.add(index);
                                       }
                                       _calculateNextWorkoutDate();
@@ -1949,9 +1990,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
-                            );
-                          }),
-                        ),
+                  );
+                }),
+              ),
                         const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1966,17 +2007,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   horizontal: 4,
                                 ),
                                 child: ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
+                  onPressed: () {
+                    setState(() {
                                       if (isSelected) {
                                         _fixedWorkoutDays.remove(dayIndex);
                                       } else {
                                         _fixedWorkoutDays.add(dayIndex);
                                       }
-                                      _calculateNextWorkoutDate();
-                                    });
+                      _calculateNextWorkoutDate();
+                    });
                                     setDialogState(() {}); // 다이얼로그도 업데이트
-                                    _saveData();
+                    _saveData();
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: isSelected
@@ -2077,7 +2118,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                    Navigator.of(context).pop();
                       _showRoutineListDialog(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -2167,9 +2208,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ],
             ),
           ),
+            );
+          },
         );
-      },
-    );
   }
 
   void _showRoutineListDialog(BuildContext context) {
@@ -2455,64 +2496,64 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     Expanded(
                       child: Container(
-                        height: 45,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
+                      height: 45,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
                         ),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            // TODO: 다음 운동일 설정 화면으로 이동
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          // TODO: 다음 운동일 설정 화면으로 이동
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                            ),
                           ),
-                          child: const Text(
+                        ),
+                        child: const Text(
                             '다음 운동일 설정',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Container(
-                        height: 45,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
+                      height: 45,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
                         ),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            // TODO: 체중 입력 화면으로 이동
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          // TODO: 체중 입력 화면으로 이동
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                            ),
                           ),
-                          child: const Text(
+                        ),
+                        child: const Text(
                             '체중 입력',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
                             ),
                           ),
                         ),
@@ -2562,7 +2603,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: widget.isDarkMode
-          ? const Color(0xFF121212)
+                ? const Color(0xFF121212)
           : const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Padding(
@@ -2594,22 +2635,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
                       color: widget.isDarkMode
-                          ? Colors.white
+                                ? Colors.white
                           : Colors.grey[800],
                     ),
                   ),
                   GestureDetector(
                     onTap: _showWeightInputDialog,
                     child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                         border: Border.all(color: Colors.grey[600]!, width: 1),
-                      ),
-                      child: Icon(
-                        Icons.monitor_weight_outlined,
+                    ),
+                    child: Icon(
+                      Icons.monitor_weight_outlined,
                         color: Colors.grey[600],
-                        size: 16,
+                      size: 16,
                       ),
                     ),
                   ),
@@ -2780,20 +2821,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       animation: _gradientAnimation,
                       builder: (context, child) {
                         return CustomPaint(
-                          painter: _CircularProgressPainter(
-                            progress: (() {
-                              if (!_isWorkoutMode) return 0.0;
-                              final total =
-                                  _workoutHours * 3600 +
-                                  _workoutMinutes * 60 +
-                                  _workoutSeconds;
-                              final capped = total % 2700; // 45 * 60
-                              return capped / 2700.0;
-                            })(),
-                            isDark: widget.isDarkMode,
+                      painter: _CircularProgressPainter(
+                        progress: (() {
+                          if (!_isWorkoutMode) return 0.0;
+                          final total =
+                              _workoutHours * 3600 +
+                              _workoutMinutes * 60 +
+                              _workoutSeconds;
+                          final capped = total % 2700; // 45 * 60
+                          return capped / 2700.0;
+                        })(),
+                        isDark: widget.isDarkMode,
                             isWorkoutMode: _isWorkoutMode,
                             animationValue: _gradientAnimation.value,
-                          ),
+                      ),
                         );
                       },
                     ),
@@ -3023,25 +3064,25 @@ class _CircularProgressPainter extends CustomPainter {
       }
     } else {
       // 평상시: 기존 방식 (배경 + 진행도)
-      final background = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 16
-        ..color = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB)
-        ..strokeCap = StrokeCap.round;
+    final background = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 16
+      ..color = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB)
+      ..strokeCap = StrokeCap.round;
 
-      final foreground = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 16
-        ..color = isDark ? Colors.white : const Color(0xFF111827)
-        ..strokeCap = StrokeCap.round;
+    final foreground = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 16
+      ..color = isDark ? Colors.white : const Color(0xFF111827)
+      ..strokeCap = StrokeCap.round;
 
-      // Base circle
-      canvas.drawCircle(center, radius, background);
+    // Base circle
+    canvas.drawCircle(center, radius, background);
 
-      // Progress arc (starts at -90 degrees)
-      final startAngle = -90 * 3.1415926535 / 180;
-      final sweepAngle = 2 * 3.1415926535 * progress.clamp(0.0, 1.0);
-      canvas.drawArc(rect, startAngle, sweepAngle, false, foreground);
+    // Progress arc (starts at -90 degrees)
+    final startAngle = -90 * 3.1415926535 / 180;
+    final sweepAngle = 2 * 3.1415926535 * progress.clamp(0.0, 1.0);
+    canvas.drawArc(rect, startAngle, sweepAngle, false, foreground);
     }
   }
 
@@ -4795,7 +4836,7 @@ class _LogScreenState extends State<LogScreen> {
                         ),
                         const SizedBox(height: 12),
                         if (_weightRecords.isEmpty)
-                          Text(
+                        Text(
                             '몸무게 기록이 없습니다',
                             style: TextStyle(
                               fontSize: 12,
@@ -4878,9 +4919,9 @@ class _LogScreenState extends State<LogScreen> {
                                           style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
+                    ),
+                  ),
+                ],
                                     ),
                                   );
                                 }).toList(),
