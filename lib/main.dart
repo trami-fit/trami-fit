@@ -1475,6 +1475,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   color: const Color(0xFF87CEEB),
                                   shape: BoxShape.circle,
                                 ),
+                                // 예정된 날짜 스타일 (클릭 가능한 날짜들)
+                                markersMaxCount: 2,
                                 todayDecoration: BoxDecoration(
                                   color: const Color(
                                     0xFF87CEEB,
@@ -1545,10 +1547,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   );
                                 },
                                 defaultBuilder: (context, day, focusedDay) {
-                                  // 고정 운동일 표시
-                                  if (_fixedWorkoutDays.contains(
-                                    day.weekday % 7,
-                                  )) {
+                                  final isScheduled = _scheduledDays.any((d) => isSameDay(d, day));
+                                  final isFixedDay = _fixedWorkoutDays.contains(day.weekday % 7);
+                                  final isSelected = isSameDay(_selectedDay, day);
+                                  
+                                  // 예정된 날짜들을 파란색으로 표시
+                                  if (isScheduled && !isSelected) {
+                                    return Container(
+                                      margin: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF87CEEB).withOpacity(0.4),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFF87CEEB),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${day.day}',
+                                          style: TextStyle(
+                                            color: widget.isDarkMode
+                                                ? Colors.white
+                                                : Colors.black87,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  
+                                  // 고정 운동일 표시 (예정된 날짜가 아닌 경우만)
+                                  if (isFixedDay && !isScheduled && !isSelected) {
                                     return Container(
                                       margin: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
@@ -1560,8 +1590,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       child: Center(
                                         child: Text(
                                           '${day.day}',
-                                          style: const TextStyle(
-                                            color: Colors.black87,
+                                          style: TextStyle(
+                                            color: widget.isDarkMode
+                                                ? Colors.white
+                                                : Colors.black87,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -1601,12 +1633,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   _calculateNextWorkoutDate();
                                   _saveData();
                                 });
-                                
+
                                 // 달력 팝업 내에서도 즉시 UI 업데이트
                                 setDialogState(() {});
                               },
                               selectedDayPredicate: (day) {
-                                return isSameDay(_selectedDay, day);
+                                return isSameDay(_selectedDay, day) ||
+                                    _scheduledDays.any((d) => isSameDay(d, day));
                               },
                             ),
                             const SizedBox(height: 8),
