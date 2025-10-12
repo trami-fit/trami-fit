@@ -4039,6 +4039,7 @@ class LogScreen extends StatefulWidget {
 
 class _LogScreenState extends State<LogScreen> {
   List<WorkoutRecord> _workoutRecords = [];
+  List<WeightRecord> _weightRecords = []; // 몸무게 기록 추가
   DateTime _currentMonth = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -4050,6 +4051,7 @@ class _LogScreenState extends State<LogScreen> {
   void initState() {
     super.initState();
     _loadWorkoutRecords();
+    _loadWeightRecords(); // 몸무게 기록 로드 추가
   }
 
   @override
@@ -4057,6 +4059,7 @@ class _LogScreenState extends State<LogScreen> {
     super.didChangeDependencies();
     // 화면이 다시 활성화될 때마다 데이터 새로고침
     _loadWorkoutRecords();
+    _loadWeightRecords(); // 몸무게 기록도 새로고침
   }
 
   Future<void> _loadWorkoutRecords() async {
@@ -4069,6 +4072,17 @@ class _LogScreenState extends State<LogScreen> {
             ..sort((a, b) => b.date.compareTo(a.date));
       // ensure selected date remains valid within loaded data range
       _selectedDate = _selectedDate;
+    });
+  }
+
+  Future<void> _loadWeightRecords() async {
+    final prefs = await SharedPreferences.getInstance();
+    final weightRecordsJson = prefs.getStringList('weight_records') ?? [];
+
+    setState(() {
+      _weightRecords =
+          weightRecordsJson.map((e) => WeightRecord.fromJson(jsonDecode(e))).toList()
+            ..sort((a, b) => a.date.compareTo(b.date)); // 날짜순 정렬
     });
   }
 
@@ -4555,7 +4569,7 @@ class _LogScreenState extends State<LogScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Weight trend placeholder
+                  // Weight trend graph
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -4578,19 +4592,100 @@ class _LogScreenState extends State<LogScreen> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           '몸무게 변화',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          '그래프는 추후 추가 예정',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
+                        const SizedBox(height: 12),
+                        if (_weightRecords.isEmpty)
+                          Text(
+                            '몸무게 기록이 없습니다',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: widget.isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            ),
+                          )
+                        else
+                          Column(
+                            children: [
+                              // 이번 달 몸무게 데이터
+                              if (_weightRecords.where((r) => 
+                                r.date.year == _currentMonth.year && 
+                                r.date.month == _currentMonth.month
+                              ).isNotEmpty) ...[
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '시작: ${_weightRecords.where((r) => 
+                                        r.date.year == _currentMonth.year && 
+                                        r.date.month == _currentMonth.month
+                                      ).first.weight.toStringAsFixed(1)}kg',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    Text(
+                                      '최근: ${_weightRecords.where((r) => 
+                                        r.date.year == _currentMonth.year && 
+                                        r.date.month == _currentMonth.month
+                                      ).last.weight.toStringAsFixed(1)}kg',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              // 간단한 선 그래프
+                              SizedBox(
+                                height: 100,
+                                child: CustomPaint(
+                                  size: Size(double.infinity, 100),
+                                  painter: WeightGraphPainter(
+                                    records: _weightRecords.where((r) => 
+                                      r.date.year == _currentMonth.year && 
+                                      r.date.month == _currentMonth.month
+                                    ).toList(),
+                                    isDark: widget.isDarkMode,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              // 최근 7개 기록 표시
+                              Column(
+                                children: _weightRecords.reversed.take(7).map((record) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '${record.date.month}/${record.date.day}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: widget.isDarkMode
+                                                ? Colors.grey[400]
+                                                : Colors.grey[600],
+                                          ),
+                                        ),
+                                        Text(
+                                          '${record.weight.toStringAsFixed(1)}kg',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),
@@ -6939,5 +7034,71 @@ class AuthWrapper extends StatelessWidget {
       //   },
       // ),
     );
+  }
+}
+
+// 몸무게 그래프 Painter
+class WeightGraphPainter extends CustomPainter {
+  final List<WeightRecord> records;
+  final bool isDark;
+
+  WeightGraphPainter({required this.records, required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (records.isEmpty) return;
+
+    final paint = Paint()
+      ..color = const Color(0xFF4785EF)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final dotPaint = Paint()
+      ..color = const Color(0xFF4785EF)
+      ..style = PaintingStyle.fill;
+
+    // 최소/최대 몸무게 찾기
+    final weights = records.map((r) => r.weight).toList();
+    final minWeight = weights.reduce((a, b) => a < b ? a : b);
+    final maxWeight = weights.reduce((a, b) => a > b ? a : b);
+    final weightRange = maxWeight - minWeight;
+    final padding = weightRange * 0.2; // 여백
+
+    final minY = minWeight - padding;
+    final maxY = maxWeight + padding;
+    final yRange = maxY - minY;
+
+    if (yRange == 0) return; // 모든 값이 같은 경우
+
+    // 포인트 계산
+    final path = Path();
+    final points = <Offset>[];
+
+    for (int i = 0; i < records.length; i++) {
+      final x = (size.width / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
+      final normalizedY = (records[i].weight - minY) / yRange;
+      final y = size.height - (normalizedY * size.height);
+      points.add(Offset(x, y));
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    // 선 그리기
+    canvas.drawPath(path, paint);
+
+    // 점 그리기
+    for (final point in points) {
+      canvas.drawCircle(point, 4, dotPaint);
+      canvas.drawCircle(point, 3, Paint()..color = Colors.white);
+    }
+  }
+
+  @override
+  bool shouldRepaint(WeightGraphPainter oldDelegate) {
+    return oldDelegate.records != records || oldDelegate.isDark != isDark;
   }
 }
