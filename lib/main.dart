@@ -1547,7 +1547,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     margin: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
                                       color: shouldShow
-                                          ? const Color(0xFF87CEEB).withOpacity(0.3)
+                                          ? const Color(
+                                              0xFF87CEEB,
+                                            ).withOpacity(0.3)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -1559,6 +1561,93 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                               ? Colors.white
                                               : Colors.black87,
                                           fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                // selectedBuilder 추가: 선택된 날짜도 defaultBuilder와 동일하게 처리
+                                selectedBuilder: (context, day, focusedDay) {
+                                  final isFixedDay = _fixedWorkoutDays.contains(
+                                    day.weekday % 7,
+                                  );
+                                  final isExcluded = _excludedDays.any(
+                                    (excludedDay) =>
+                                        isSameDay(excludedDay, day),
+                                  );
+                                  final isIndividuallySelected = _scheduledDays
+                                      .any(
+                                        (scheduledDay) =>
+                                            isSameDay(scheduledDay, day),
+                                      );
+                                  final shouldShow =
+                                      (isFixedDay && !isExcluded) ||
+                                      (!isFixedDay && isIndividuallySelected);
+
+                                  return Container(
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: shouldShow
+                                          ? const Color(
+                                              0xFF87CEEB,
+                                            ).withOpacity(0.3)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${day.day}',
+                                        style: TextStyle(
+                                          color: widget.isDarkMode
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                // todayBuilder 추가: 오늘 날짜도 defaultBuilder와 동일하게 처리
+                                todayBuilder: (context, day, focusedDay) {
+                                  final isFixedDay = _fixedWorkoutDays.contains(
+                                    day.weekday % 7,
+                                  );
+                                  final isExcluded = _excludedDays.any(
+                                    (excludedDay) =>
+                                        isSameDay(excludedDay, day),
+                                  );
+                                  final isIndividuallySelected = _scheduledDays
+                                      .any(
+                                        (scheduledDay) =>
+                                            isSameDay(scheduledDay, day),
+                                      );
+                                  final shouldShow =
+                                      (isFixedDay && !isExcluded) ||
+                                      (!isFixedDay && isIndividuallySelected);
+
+                                  return Container(
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: shouldShow
+                                          ? const Color(
+                                              0xFF87CEEB,
+                                            ).withOpacity(0.3)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      // 오늘 날짜는 테두리 추가
+                                      border: Border.all(
+                                        color: const Color(0xFF87CEEB),
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${day.day}',
+                                        style: TextStyle(
+                                          color: widget.isDarkMode
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
@@ -1602,7 +1691,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       }
                                     }
 
-                                    _selectedDay = selectedDay;
                                     _focusedDay = focusedDay;
                                     _calculateNextWorkoutDate();
                                     _saveData();
@@ -1610,7 +1698,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 });
                               },
                               selectedDayPredicate: (day) {
-                                return isSameDay(_selectedDay, day);
+                                // 선택 상태를 사용하지 않음
+                                return false;
                               },
                             ),
                             const SizedBox(height: 8),
