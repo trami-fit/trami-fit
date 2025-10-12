@@ -659,7 +659,9 @@ class WeightRecord {
     if (json.containsKey('weights')) {
       return WeightRecord(
         date: DateTime.parse(json['date']),
-        weights: (json['weights'] as List<dynamic>).map((e) => (e as num).toDouble()).toList(),
+        weights: (json['weights'] as List<dynamic>)
+            .map((e) => (e as num).toDouble())
+            .toList(),
       );
     } else {
       // 기존 단일 weight 값을 배열로 변환
@@ -1707,7 +1709,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           record.date.month == today.month &&
           record.date.day == today.day;
     }).firstOrNull;
-    
+
     if (todayRecord != null) {
       weightController.text = todayRecord.averageWeight.toStringAsFixed(1);
     }
@@ -1769,21 +1771,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         record.date.day == todayDate.day;
                   }).firstOrNull;
 
+                  // 먼저 다이얼로그 닫기
+                  Navigator.of(context).pop();
+                  
                   if (existingRecord != null) {
                     // 기존 기록이 있으면 weights 배열에 추가
                     final updatedWeights = [...existingRecord.weights, weight];
-                    final avgWeight = updatedWeights.reduce((a, b) => a + b) / updatedWeights.length;
-                    
+                    final avgWeight =
+                        updatedWeights.reduce((a, b) => a + b) /
+                        updatedWeights.length;
+
                     // 기존 기록 제거하고 업데이트된 기록 추가
-                    _weightRecords.removeWhere((record) {
-                      return record.date.year == todayDate.year &&
-                          record.date.month == todayDate.month &&
-                          record.date.day == todayDate.day;
+                    setState(() {
+                      _weightRecords.removeWhere((record) {
+                        return record.date.year == todayDate.year &&
+                            record.date.month == todayDate.month &&
+                            record.date.day == todayDate.day;
+                      });
+                      _weightRecords.add(
+                        WeightRecord(date: todayDate, weights: updatedWeights),
+                      );
+                      _weightRecords.sort((a, b) => a.date.compareTo(b.date));
                     });
-                    _weightRecords.add(
-                      WeightRecord(date: todayDate, weights: updatedWeights),
-                    );
-                    
+
+                    _saveData();
+
                     // 성공 스낵바 (평균값 표시)
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1791,14 +1803,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           '体重を記録しました: ${weight.toStringAsFixed(1)}kg\n平均: ${avgWeight.toStringAsFixed(1)}kg (${updatedWeights.length}回)',
                         ),
                         duration: const Duration(seconds: 2),
+                        backgroundColor: const Color(0xFF4CAF50),
                       ),
                     );
                   } else {
                     // 새 기록 추가
-                    _weightRecords.add(
-                      WeightRecord(date: todayDate, weights: [weight]),
-                    );
-                    
+                    setState(() {
+                      _weightRecords.add(
+                        WeightRecord(date: todayDate, weights: [weight]),
+                      );
+                      _weightRecords.sort((a, b) => a.date.compareTo(b.date));
+                    });
+
+                    _saveData();
+
                     // 성공 스낵바
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1806,16 +1824,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           '体重を記録しました: ${weight.toStringAsFixed(1)}kg',
                         ),
                         duration: const Duration(seconds: 2),
+                        backgroundColor: const Color(0xFF4CAF50),
                       ),
                     );
                   }
-
-                  // 날짜순 정렬
-                  _weightRecords.sort((a, b) => a.date.compareTo(b.date));
-
-                  _saveData();
-                  setState(() {});
-                  Navigator.of(context).pop();
                 } else {
                   // 에러 스낵바
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -7165,7 +7177,9 @@ class WeightGraphPainter extends CustomPainter {
     final points = <Offset>[];
 
     for (int i = 0; i < records.length; i++) {
-      final x = leftPadding + (graphWidth / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
+      final x =
+          leftPadding +
+          (graphWidth / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
       final normalizedY = (records[i].averageWeight - minY) / yRange;
       final y = topPadding + graphHeight - (normalizedY * graphHeight);
       points.add(Offset(x, y));
