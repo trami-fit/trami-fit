@@ -236,6 +236,18 @@ class AppLocalizations {
       'google_login_failed': 'Googleログイン失敗',
       'apple_login_failed': 'Appleログイン失敗',
       'temp_login_failed': '一時ログイン失敗',
+      'today_weight': '今日の体重',
+      'weight_kg': '体重 (kg)',
+      'weight_placeholder': '例: 70.5',
+      'weight_recorded': '体重を記録しました',
+      'average': '平均',
+      'times': '回',
+      'correct_weight': '正しい体重を入力してください',
+      'no_records': '記録なし',
+      'weekly_workout': '週間運動量',
+      'total': '合計',
+      'week': '週',
+      'category_analysis': 'カテゴリー別分析',
     },
     '한국어': {
       'home': '홈',
@@ -459,6 +471,18 @@ class AppLocalizations {
       'google_login_failed': 'Google 로그인 실패',
       'apple_login_failed': 'Apple 로그인 실패',
       'temp_login_failed': '임시 로그인 실패',
+      'today_weight': '오늘의 체중',
+      'weight_kg': '체중 (kg)',
+      'weight_placeholder': '예: 70.5',
+      'weight_recorded': '체중을 기록했습니다',
+      'average': '평균',
+      'times': '회',
+      'correct_weight': '올바른 체중을 입력해주세요',
+      'no_records': '기록 없음',
+      'weekly_workout': '주간 운동량',
+      'total': '총',
+      'week': '주',
+      'category_analysis': '카테고리별 분석',
     },
     'English': {
       'home': 'Home',
@@ -683,6 +707,18 @@ class AppLocalizations {
       'google_login_failed': 'Google login failed',
       'apple_login_failed': 'Apple login failed',
       'temp_login_failed': 'Temporary login failed',
+      'today_weight': 'Today\'s Weight',
+      'weight_kg': 'Weight (kg)',
+      'weight_placeholder': 'e.g.: 70.5',
+      'weight_recorded': 'Weight recorded',
+      'average': 'Average',
+      'times': 'times',
+      'correct_weight': 'Please enter a valid weight',
+      'no_records': 'No records',
+      'weekly_workout': 'Weekly Workout',
+      'total': 'Total',
+      'week': 'Week',
+      'category_analysis': 'Category Analysis',
     },
   };
 
@@ -1950,9 +1986,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
-            '今日の体重',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          title: Text(
+            AppLocalizations.getText('today_weight', widget.language),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1963,8 +1999,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: '体重 (kg)',
-                  hintText: '例: 70.5',
+                  labelText: AppLocalizations.getText('weight_kg', widget.language),
+                  hintText: AppLocalizations.getText('weight_placeholder', widget.language),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1977,7 +2013,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('キャンセル'),
+              child: Text(AppLocalizations.getText('cancel', widget.language)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -2029,7 +2065,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          '体重を記録しました: ${weight.toStringAsFixed(1)}kg\n平均: ${avgWeight.toStringAsFixed(1)}kg (${updatedWeights.length}回)',
+                          '${AppLocalizations.getText('weight_recorded', widget.language)}: ${weight.toStringAsFixed(1)}kg\n${AppLocalizations.getText('average', widget.language)}: ${avgWeight.toStringAsFixed(1)}kg (${updatedWeights.length}${AppLocalizations.getText('times', widget.language)})',
                         ),
                         duration: const Duration(seconds: 2),
                         backgroundColor: const Color(0xFF4CAF50),
@@ -2050,7 +2086,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          '体重を記録しました: ${weight.toStringAsFixed(1)}kg',
+                          '${AppLocalizations.getText('weight_recorded', widget.language)}: ${weight.toStringAsFixed(1)}kg',
                         ),
                         duration: const Duration(seconds: 2),
                         backgroundColor: const Color(0xFF4CAF50),
@@ -2060,9 +2096,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 } else {
                   // 에러 스낵바
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('正しい体重を入力してください'),
-                      duration: Duration(seconds: 2),
+                    SnackBar(
+                      content: Text(AppLocalizations.getText('correct_weight', widget.language)),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 }
@@ -2073,7 +2109,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('保存', style: TextStyle(color: Colors.white)),
+              child: Text(AppLocalizations.getText('save', widget.language), style: const TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -4850,7 +4886,7 @@ class _LogScreenState extends State<LogScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${_fmt(_selectedDate)} 기록',
+                      '${_fmt(_selectedDate)} ${AppLocalizations.getText('records', widget.language)}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -4859,7 +4895,7 @@ class _LogScreenState extends State<LogScreen> {
                     const SizedBox(height: 8),
                     if (logsForSelected.isEmpty)
                       Text(
-                        '기록 없음',
+                        AppLocalizations.getText('no_records', widget.language),
                         style: TextStyle(
                           color: widget.isDarkMode
                               ? Colors.grey[400]
@@ -4939,9 +4975,9 @@ class _LogScreenState extends State<LogScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '이번달 주간 운동시간',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.getText('weekly_workout', widget.language),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -4998,9 +5034,9 @@ class _LogScreenState extends State<LogScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '카테고리 비율',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.getText('category_analysis', widget.language),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -5008,7 +5044,7 @@ class _LogScreenState extends State<LogScreen> {
                         const SizedBox(height: 8),
                         if (_categoryMinutesThisMonth.isEmpty)
                           Text(
-                            '데이터 없음',
+                            AppLocalizations.getText('no_records', widget.language),
                             style: TextStyle(
                               color: widget.isDarkMode
                                   ? Colors.grey[400]
@@ -6956,13 +6992,19 @@ class _RoutineAnalysisDialog extends StatelessWidget {
                                 ? Colors.grey[800]
                                 : Colors.white,
                             title: Text(
-                              AppLocalizations.getText('delete_workout_records', language),
+                              AppLocalizations.getText(
+                                'delete_workout_records',
+                                language,
+                              ),
                               style: TextStyle(
                                 color: isDarkMode ? Colors.white : Colors.black,
                               ),
                             ),
                             content: Text(
-                              AppLocalizations.getText('delete_confirmation', language),
+                              AppLocalizations.getText(
+                                'delete_confirmation',
+                                language,
+                              ),
                               style: TextStyle(
                                 color: isDarkMode
                                     ? Colors.grey[300]
@@ -6973,10 +7015,7 @@ class _RoutineAnalysisDialog extends StatelessWidget {
                               TextButton(
                                 onPressed: () => Navigator.of(context).pop(),
                                 child: Text(
-                                  AppLocalizations.getText(
-                                    'cancel',
-                                    language,
-                                  ),
+                                  AppLocalizations.getText('cancel', language),
                                 ),
                               ),
                               TextButton(
@@ -7029,7 +7068,9 @@ class _RoutineAnalysisDialog extends StatelessWidget {
                         // TODO: 루틴 시작 로직
                       },
                       icon: const Icon(Icons.play_arrow, size: 20),
-                      label: Text(AppLocalizations.getText('start_workout', language)),
+                      label: Text(
+                        AppLocalizations.getText('start_workout', language),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF667EEA),
                         foregroundColor: Colors.white,
