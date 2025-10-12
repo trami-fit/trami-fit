@@ -1547,38 +1547,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   );
                                 },
                                 defaultBuilder: (context, day, focusedDay) {
-                                  final isScheduled = _scheduledDays.any((d) => isSameDay(d, day));
-                                  final isFixedDay = _fixedWorkoutDays.contains(day.weekday % 7);
-                                  final isSelected = isSameDay(_selectedDay, day);
-                                  
-                                  // 예정된 날짜들을 파란색으로 표시
+                                  final isScheduled = _scheduledDays.any(
+                                    (d) => isSameDay(d, day),
+                                  );
+                                  final isFixedDay = _fixedWorkoutDays.contains(
+                                    day.weekday % 7,
+                                  );
+                                  final isSelected = isSameDay(
+                                    _selectedDay,
+                                    day,
+                                  );
+
+                                  // 예정된 날짜들을 사각형 파란색으로 표시 (요일칩과 동일)
                                   if (isScheduled && !isSelected) {
                                     return Container(
                                       margin: const EdgeInsets.all(2),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF87CEEB).withOpacity(0.4),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: const Color(0xFF87CEEB),
-                                          width: 1.5,
-                                        ),
+                                        color: const Color(0xFF87CEEB),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Center(
                                         child: Text(
                                           '${day.day}',
-                                          style: TextStyle(
-                                            color: widget.isDarkMode
-                                                ? Colors.white
-                                                : Colors.black87,
+                                          style: const TextStyle(
+                                            color: Colors.white,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
                                     );
                                   }
-                                  
+
                                   // 고정 운동일 표시 (예정된 날짜가 아닌 경우만)
-                                  if (isFixedDay && !isScheduled && !isSelected) {
+                                  if (isFixedDay &&
+                                      !isScheduled &&
+                                      !isSelected) {
                                     return Container(
                                       margin: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
@@ -1639,7 +1642,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               },
                               selectedDayPredicate: (day) {
                                 return isSameDay(_selectedDay, day) ||
-                                    _scheduledDays.any((d) => isSameDay(d, day));
+                                    _scheduledDays.any(
+                                      (d) => isSameDay(d, day),
+                                    );
                               },
                             ),
                             const SizedBox(height: 8),
