@@ -2363,6 +2363,47 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               const SizedBox(height: 60),
 
+              // 루틴명 박스 (운동 중일 때만 표시)
+              if (_isWorkoutMode && _selectedWorkoutType.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4785EF), Color(0xFF84CACD)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4785EF).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.fitness_center,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _selectedWorkoutType,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Central countdown timer with 45-min circular progress
               Stack(
                 alignment: Alignment.center,
@@ -2430,11 +2471,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const SizedBox(height: 8),
                       Text(
                         _isWorkoutMode
-                            ? (_isPaused
-                                  ? '一時停止中...'
-                                  : (_selectedWorkoutType.isNotEmpty
-                                        ? _selectedWorkoutType
-                                        : '運動中...'))
+                            ? (_isPaused ? '一時停止中...' : '運動中...')
                             : (_nextWorkoutDate != null
                                   ? _getNextWorkoutDateText()
                                   : '카운트업 중'),
