@@ -1431,158 +1431,152 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       child: Column(
                         children: [
                           TableCalendar<String>(
-                              firstDay: DateTime.utc(2020, 1, 1),
-                              lastDay: DateTime.utc(2030, 12, 31),
-                              focusedDay: _focusedDay,
-                              calendarFormat: CalendarFormat.month,
-                              eventLoader: (day) {
-                                final isDone = _workoutDays.any(
-                                  (d) => isSameDay(d, day),
-                                );
-                                final isScheduled = _scheduledDays.any(
-                                  (d) => isSameDay(d, day),
-                                );
-                                final List<String> events = [];
-                                if (isDone) events.add('done');
-                                if (isScheduled) events.add('scheduled');
-                                return events;
-                              },
-                              startingDayOfWeek: StartingDayOfWeek.sunday,
-                              calendarStyle: CalendarStyle(
-                                outsideDaysVisible: false,
-                                weekendTextStyle: TextStyle(
-                                  color: widget.isDarkMode
-                                      ? Colors.red[300]
-                                      : Colors.red,
-                                ),
-                                holidayTextStyle: TextStyle(
-                                  color: widget.isDarkMode
-                                      ? Colors.red[300]
-                                      : Colors.red,
-                                ),
-                                defaultTextStyle: TextStyle(
-                                  color: widget.isDarkMode
-                                      ? Colors.white
-                                      : Colors.black87,
-                                ),
-                                selectedTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                todayTextStyle: TextStyle(
+                            firstDay: DateTime.utc(2020, 1, 1),
+                            lastDay: DateTime.utc(2030, 12, 31),
+                            focusedDay: _focusedDay,
+                            calendarFormat: CalendarFormat.month,
+                            eventLoader: (day) {
+                              final isDone = _workoutDays.any(
+                                (d) => isSameDay(d, day),
+                              );
+                              final isScheduled = _scheduledDays.any(
+                                (d) => isSameDay(d, day),
+                              );
+                              final List<String> events = [];
+                              if (isDone) events.add('done');
+                              if (isScheduled) events.add('scheduled');
+                              return events;
+                            },
+                            startingDayOfWeek: StartingDayOfWeek.sunday,
+                            calendarStyle: CalendarStyle(
+                              outsideDaysVisible: false,
+                              weekendTextStyle: TextStyle(
+                                color: widget.isDarkMode
+                                    ? Colors.red[300]
+                                    : Colors.red,
+                              ),
+                              holidayTextStyle: TextStyle(
+                                color: widget.isDarkMode
+                                    ? Colors.red[300]
+                                    : Colors.red,
+                              ),
+                              defaultTextStyle: TextStyle(
+                                color: widget.isDarkMode
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
+                              selectedTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              todayTextStyle: TextStyle(
+                                color: const Color(0xFF87CEEB),
+                                fontWeight: FontWeight.bold,
+                              ),
+                              selectedDecoration: BoxDecoration(
+                                color: const Color(0xFF87CEEB),
+                                shape: BoxShape.circle,
+                              ),
+                              todayDecoration: BoxDecoration(
+                                color: const Color(0xFF87CEEB).withOpacity(0.2),
+                                shape: BoxShape.circle,
+                                border: Border.all(
                                   color: const Color(0xFF87CEEB),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                selectedDecoration: BoxDecoration(
-                                  color: const Color(0xFF87CEEB),
-                                  shape: BoxShape.circle,
-                                ),
-                                todayDecoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF87CEEB,
-                                  ).withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFF87CEEB),
-                                    width: 2,
-                                  ),
+                                  width: 2,
                                 ),
                               ),
-                              headerStyle: HeaderStyle(
-                                formatButtonVisible: false,
-                                titleCentered: true,
-                                titleTextStyle: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: widget.isDarkMode
-                                      ? Colors.white
-                                      : Colors.black87,
-                                ),
-                                leftChevronIcon: Icon(
-                                  Icons.chevron_left,
-                                  color: const Color(0xFF87CEEB),
-                                ),
-                                rightChevronIcon: Icon(
-                                  Icons.chevron_right,
-                                  color: const Color(0xFF87CEEB),
-                                ),
+                            ),
+                            headerStyle: HeaderStyle(
+                              formatButtonVisible: false,
+                              titleCentered: true,
+                              titleTextStyle: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: widget.isDarkMode
+                                    ? Colors.white
+                                    : Colors.black87,
                               ),
-                              calendarBuilders: CalendarBuilders(
-                                markerBuilder: (context, day, events) {
-                                  if (events.isEmpty) return null;
-                                  // 여러 이벤트를 작은 점 두 개로 표현
-                                  return Positioned(
-                                    right: 4,
-                                    bottom: 4,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (events.contains('scheduled'))
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            margin: const EdgeInsets.only(
-                                              right: 2,
-                                            ),
-                                            decoration: const BoxDecoration(
-                                              color: Color(
-                                                0xFF2196F3,
-                                              ), // 파란색: 예정
-                                              shape: BoxShape.circle,
-                                            ),
+                              leftChevronIcon: Icon(
+                                Icons.chevron_left,
+                                color: const Color(0xFF87CEEB),
+                              ),
+                              rightChevronIcon: Icon(
+                                Icons.chevron_right,
+                                color: const Color(0xFF87CEEB),
+                              ),
+                            ),
+                            calendarBuilders: CalendarBuilders(
+                              markerBuilder: (context, day, events) {
+                                if (events.isEmpty) return null;
+                                // 여러 이벤트를 작은 점 두 개로 표현
+                                return Positioned(
+                                  right: 4,
+                                  bottom: 4,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (events.contains('scheduled'))
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          margin: const EdgeInsets.only(
+                                            right: 2,
                                           ),
-                                        if (events.contains('done'))
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration: const BoxDecoration(
-                                              color: Color(
-                                                0xFF4CAF50,
-                                              ), // 초록색: 완료
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                                defaultBuilder: (context, day, focusedDay) {
-                                  // 고정 운동일 표시
-                                  if (_fixedWorkoutDays.contains(
-                                    day.weekday % 7,
-                                  )) {
-                                    return Container(
-                                      margin: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFF87CEEB,
-                                        ).withOpacity(0.3),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '${day.day}',
-                                          style: const TextStyle(
-                                            color: Colors.black87,
-                                            fontWeight: FontWeight.w500,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF2196F3), // 파란색: 예정
+                                            shape: BoxShape.circle,
                                           ),
                                         ),
-                                      ),
-                                    );
-                                  }
-                                  return null;
-                                },
-                              ),
-                              onDaySelected: (selectedDay, focusedDay) {
-                                setState(() {
-                                  _selectedDay = selectedDay;
-                                  _focusedDay = focusedDay;
-                                });
+                                      if (events.contains('done'))
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF4CAF50), // 초록색: 완료
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                );
                               },
-                              selectedDayPredicate: (day) {
-                                return isSameDay(_selectedDay, day);
+                              defaultBuilder: (context, day, focusedDay) {
+                                // 고정 운동일 표시
+                                if (_fixedWorkoutDays.contains(
+                                  day.weekday % 7,
+                                )) {
+                                  return Container(
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFF87CEEB,
+                                      ).withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${day.day}',
+                                        style: const TextStyle(
+                                          color: Colors.black87,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return null;
                               },
                             ),
+                            onDaySelected: (selectedDay, focusedDay) {
+                              setState(() {
+                                _selectedDay = selectedDay;
+                                _focusedDay = focusedDay;
+                              });
+                            },
+                            selectedDayPredicate: (day) {
+                              return isSameDay(_selectedDay, day);
+                            },
+                          ),
                           const SizedBox(height: 8),
                           // Fixed workout days section
                           Container(
@@ -1617,68 +1611,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: List.generate(7, (index) {
-                                      final dayNames = [
-                                        '일',
-                                        '월',
-                                        '화',
-                                        '수',
-                                        '목',
-                                        '금',
-                                        '토',
-                                      ];
-                                      final selected = _fixedWorkoutDays
-                                          .contains(index);
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 4,
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: List.generate(7, (index) {
+                                    final dayNames = [
+                                      '일',
+                                      '월',
+                                      '화',
+                                      '수',
+                                      '목',
+                                      '금',
+                                      '토',
+                                    ];
+                                    final selected = _fixedWorkoutDays
+                                        .contains(index);
+                                    return FilterChip(
+                                      label: Text(
+                                        dayNames[index],
+                                        style: TextStyle(
+                                          color: selected
+                                              ? Colors.white
+                                              : (widget.isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.black87),
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 11,
                                         ),
-                                        child: FilterChip(
-                                          label: Text(
-                                            dayNames[index],
-                                            style: TextStyle(
-                                              color: selected
-                                                  ? Colors.white
-                                                  : (widget.isDarkMode
-                                                        ? Colors.white
-                                                        : Colors.black87),
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                          selected: selected,
-                                          onSelected: (bool value) {
-                                            setState(() {
-                                              if (value) {
-                                                if (!_fixedWorkoutDays.contains(
-                                                  index,
-                                                )) {
-                                                  _fixedWorkoutDays.add(index);
-                                                }
-                                              } else {
-                                                _fixedWorkoutDays.remove(index);
-                                              }
-                                              _fixedWorkoutDays.sort();
-                                              _saveData();
-                                              _calculateNextWorkoutDate();
-                                            });
-                                          },
-                                          selectedColor: const Color(
-                                            0xFF87CEEB,
-                                          ),
-                                          checkmarkColor: Colors.white,
-                                          backgroundColor: widget.isDarkMode
-                                              ? Colors.grey[700]
-                                              : Colors.grey[200],
-                                          materialTapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                      );
-                                    }),
-                                  ),
+                                      ),
+                                      selected: selected,
+                                      onSelected: (bool value) {
+                                        setState(() {
+                                          if (value) {
+                                            if (!_fixedWorkoutDays.contains(
+                                              index,
+                                            )) {
+                                              _fixedWorkoutDays.add(index);
+                                            }
+                                          } else {
+                                            _fixedWorkoutDays.remove(index);
+                                          }
+                                          _fixedWorkoutDays.sort();
+                                          _saveData();
+                                          _calculateNextWorkoutDate();
+                                        });
+                                      },
+                                      selectedColor: const Color(
+                                        0xFF87CEEB,
+                                      ),
+                                      checkmarkColor: Colors.white,
+                                      backgroundColor: widget.isDarkMode
+                                          ? Colors.grey[700]
+                                          : Colors.grey[200],
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    );
+                                  }),
                                 ),
                               ],
                             ),
