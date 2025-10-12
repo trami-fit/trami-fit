@@ -220,6 +220,8 @@ class AppLocalizations {
       'plyo_push_up': 'プライオプッシュアップ',
       'workout_pace': '運動ペース',
       'weight_change': '体重の変化',
+      'start': 'スタート',
+      'recent': '最近',
     },
     '한국어': {
       'home': '홈',
@@ -427,6 +429,8 @@ class AppLocalizations {
       'plyo_push_up': '플라이오 푸시업',
       'workout_pace': '운동 페이스',
       'weight_change': '체중 변화',
+      'start': '시작',
+      'recent': '최근',
     },
     'English': {
       'home': 'Home',
@@ -634,6 +638,8 @@ class AppLocalizations {
       'plyo_push_up': 'Plyometric Push-Up',
       'workout_pace': 'Workout Pace',
       'weight_change': 'Weight Change',
+      'start': 'Start',
+      'recent': 'Recent',
     },
   };
 
@@ -1197,13 +1203,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   String _getNextWorkoutDateText() {
     if (_nextWorkoutDate == null) {
-      return '予定なし';
+      if (widget.language == '日本語') {
+        return '予定なし';
+      } else if (widget.language == '한국어') {
+        return '예정 없음';
+      } else {
+        return 'No schedule';
+      }
     }
 
     final month = _nextWorkoutDate!.month;
     final day = _nextWorkoutDate!.day;
 
-    return '$month月$day日予定';
+    // 언어별로 다르게
+    if (widget.language == '日本語') {
+      return '$month月$day日予定';
+    } else if (widget.language == '한국어') {
+      return '$month월 $day일 예정';
+    } else {
+      return '$month/$day scheduled';
+    }
   }
 
   String _getCurrentDateText() {
@@ -1408,52 +1427,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-            child: Container(
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
                 width: MediaQuery.of(context).size.width - 10,
                 height: MediaQuery.of(context).size.height * 0.65,
-              decoration: BoxDecoration(
-                color: widget.isDarkMode
-                    ? const Color(0xFF1E1E1E)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Close button only
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close, size: 20),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[300],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                decoration: BoxDecoration(
+                  color: widget.isDarkMode
+                      ? const Color(0xFF1E1E1E)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Close button only
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close, size: 20),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.grey[300],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  // Calendar content
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Column(
-                        children: [
+                    // Calendar content
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Column(
+                          children: [
                             TableCalendar<String>(
                               firstDay: DateTime.utc(2020, 1, 1),
                               lastDay: DateTime.utc(2030, 12, 31),
@@ -1638,38 +1657,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       (isFixedDay && !isExcluded) ||
                                       (!isFixedDay && isIndividuallySelected);
 
-                                    return Container(
-                                      margin: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
+                                  return Container(
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
                                       color: shouldShow
                                           ? const Color(
-                                          0xFF87CEEB,
+                                              0xFF87CEEB,
                                             ).withOpacity(0.3)
                                           : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(8),
                                       // 오늘 날짜는 테두리 추가
                                       border: Border.all(
                                         color: const Color(0xFF87CEEB),
                                         width: 2,
                                       ),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '${day.day}',
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${day.day}',
                                         style: TextStyle(
                                           color: widget.isDarkMode
                                               ? Colors.white
                                               : Colors.black87,
                                           fontWeight: FontWeight.bold,
-                                          ),
                                         ),
                                       ),
-                                    );
+                                    ),
+                                  );
                                 },
                               ),
                               onDaySelected: (selectedDay, focusedDay) {
                                 setDialogState(() {
-                                setState(() {
+                                  setState(() {
                                     final isFixedDay = _fixedWorkoutDays
                                         .contains(selectedDay.weekday % 7);
                                     final isExcluded = _excludedDays.any(
@@ -1704,7 +1723,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       }
                                     }
 
-                                  _focusedDay = focusedDay;
+                                    _focusedDay = focusedDay;
                                     _calculateNextWorkoutDate();
                                     _saveData();
                                   });
@@ -1714,54 +1733,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 // 선택 상태를 사용하지 않음
                                 return false;
                               },
-                          ),
-                          const SizedBox(height: 8),
-                          // Fixed workout days section
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: widget.isDarkMode
-                                  ? const Color(0xFF2A2A2A)
-                                  : Colors.grey[50],
-                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.schedule,
-                                      color: const Color(0xFF87CEEB),
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '고정 운동일',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: widget.isDarkMode
-                                            ? Colors.white
-                                            : Colors.black87,
+                            const SizedBox(height: 8),
+                            // Fixed workout days section
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: widget.isDarkMode
+                                    ? const Color(0xFF2A2A2A)
+                                    : Colors.grey[50],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.schedule,
+                                        color: const Color(0xFF87CEEB),
+                                        size: 16,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        AppLocalizations.getText('fixed_workout_days', widget.language),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: widget.isDarkMode
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceEvenly,
                                     children: List.generate(7, (index) {
-                                      final dayNames = [
-                                        '일',
-                                        '월',
-                                        '화',
-                                        '수',
-                                        '목',
-                                        '금',
-                                        '토',
-                                      ];
+                                      final dayNames = widget.language == '日本語'
+                                          ? ['日', '月', '火', '水', '木', '金', '土']
+                                          : widget.language == '한국어'
+                                              ? ['일', '월', '화', '수', '목', '금', '토']
+                                              : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
                                       final selected = _fixedWorkoutDays
                                           .contains(index);
                                       final dayColors = [
@@ -1785,7 +1800,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                                 if (selected) {
                                                   // 고정요일 해제 시 해당 요일의 모든 날짜 관련 데이터 삭제
                                                   _fixedWorkoutDays.remove(
-                                                  index,
+                                                    index,
                                                   );
                                                   // 해당 요일의 모든 제외 날짜 제거
                                                   _excludedDays.removeWhere(
@@ -1801,14 +1816,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                                   );
                                                 } else {
                                                   _fixedWorkoutDays.add(index);
-                                              }
-                                              _fixedWorkoutDays.sort();
+                                                }
+                                                _fixedWorkoutDays.sort();
                                               });
                                               setState(() {
-                                              _saveData();
-                                              _calculateNextWorkoutDate();
-                                            });
-                                          },
+                                                _saveData();
+                                                _calculateNextWorkoutDate();
+                                              });
+                                            },
                                             child: Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -1818,7 +1833,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                                 color: selected
                                                     ? const Color(0xFF87CEEB)
                                                     : (widget.isDarkMode
-                                              ? Colors.grey[700]
+                                                          ? Colors.grey[700]
                                                           : Colors.grey[200]),
                                                 borderRadius:
                                                     BorderRadius.circular(8),
@@ -1843,15 +1858,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     }),
                                   ),
                                 ],
-                                  ),
-                                ),
-                              ],
-                        ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
+                  ],
+                ),
+              ),
             );
           },
         );
@@ -1902,9 +1917,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   prefixIcon: const Icon(Icons.monitor_weight_outlined),
                 ),
                 autofocus: true,
-                  ),
-                ],
               ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -2037,7 +2052,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 width: MediaQuery.of(context).size.width * 0.9,
                 padding: const EdgeInsets.all(30),
                 child: Column(
-                mainAxisSize: MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
                       '固定運動日設定',
@@ -2072,7 +2087,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     setState(() {
                                       if (isSelected) {
                                         _fixedWorkoutDays.remove(index);
-                        } else {
+                                      } else {
                                         _fixedWorkoutDays.add(index);
                                       }
                                       _calculateNextWorkoutDate();
@@ -2105,9 +2120,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
-                  );
-                }),
-              ),
+                            );
+                          }),
+                        ),
                         const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -2122,17 +2137,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   horizontal: 4,
                                 ),
                                 child: ElevatedButton(
-                  onPressed: () {
-                    setState(() {
+                                  onPressed: () {
+                                    setState(() {
                                       if (isSelected) {
                                         _fixedWorkoutDays.remove(dayIndex);
                                       } else {
                                         _fixedWorkoutDays.add(dayIndex);
                                       }
-                      _calculateNextWorkoutDate();
-                    });
+                                      _calculateNextWorkoutDate();
+                                    });
                                     setDialogState(() {}); // 다이얼로그도 업데이트
-                    _saveData();
+                                    _saveData();
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: isSelected
@@ -2233,7 +2248,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   child: ElevatedButton(
                     onPressed: () {
-                    Navigator.of(context).pop();
+                      Navigator.of(context).pop();
                       _showRoutineListDialog(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -2323,9 +2338,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ],
             ),
           ),
-            );
-          },
         );
+      },
+    );
   }
 
   void _showRoutineListDialog(BuildContext context) {
@@ -2611,64 +2626,64 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     Expanded(
                       child: Container(
-                      height: 45,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
-                        ),
+                        height: 45,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
+                          ),
                           borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          // TODO: 다음 운동일 설정 화면으로 이동
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            // TODO: 다음 운동일 설정 화면으로 이동
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        ),
-                        child: const Text(
+                          child: const Text(
                             '다음 운동일 설정',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Container(
-                      height: 45,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                        ),
-                          borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          // TODO: 체중 입력 화면으로 이동
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        height: 45,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
                           ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            // TODO: 체중 입력 화면으로 이동
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
                             '체중 입력',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
                         ),
@@ -2718,7 +2733,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: widget.isDarkMode
-                ? const Color(0xFF121212)
+          ? const Color(0xFF121212)
           : const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Padding(
@@ -2750,22 +2765,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
                       color: widget.isDarkMode
-                                ? Colors.white
+                          ? Colors.white
                           : Colors.grey[800],
                     ),
                   ),
                   GestureDetector(
                     onTap: _showWeightInputDialog,
                     child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         border: Border.all(color: Colors.grey[600]!, width: 1),
-                    ),
-                    child: Icon(
-                      Icons.monitor_weight_outlined,
+                      ),
+                      child: Icon(
+                        Icons.monitor_weight_outlined,
                         color: Colors.grey[600],
-                      size: 16,
+                        size: 16,
                       ),
                     ),
                   ),
@@ -2789,7 +2804,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            AppLocalizations.getText('workout_time', widget.language),
+                            AppLocalizations.getText(
+                              'workout_time',
+                              widget.language,
+                            ),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -2819,7 +2837,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            AppLocalizations.getText('weight_change', widget.language),
+                            AppLocalizations.getText(
+                              'weight_change',
+                              widget.language,
+                            ),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -2849,7 +2870,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            AppLocalizations.getText('workout_pace', widget.language),
+                            AppLocalizations.getText(
+                              'workout_pace',
+                              widget.language,
+                            ),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -2936,20 +2960,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       animation: _gradientAnimation,
                       builder: (context, child) {
                         return CustomPaint(
-                      painter: _CircularProgressPainter(
-                        progress: (() {
-                          if (!_isWorkoutMode) return 0.0;
-                          final total =
-                              _workoutHours * 3600 +
-                              _workoutMinutes * 60 +
-                              _workoutSeconds;
-                          final capped = total % 2700; // 45 * 60
-                          return capped / 2700.0;
-                        })(),
-                        isDark: widget.isDarkMode,
+                          painter: _CircularProgressPainter(
+                            progress: (() {
+                              if (!_isWorkoutMode) return 0.0;
+                              final total =
+                                  _workoutHours * 3600 +
+                                  _workoutMinutes * 60 +
+                                  _workoutSeconds;
+                              final capped = total % 2700; // 45 * 60
+                              return capped / 2700.0;
+                            })(),
+                            isDark: widget.isDarkMode,
                             isWorkoutMode: _isWorkoutMode,
                             animationValue: _gradientAnimation.value,
-                      ),
+                          ),
                         );
                       },
                     ),
@@ -2958,10 +2982,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Text(
                         _isWorkoutMode
-                            ? '運動時間'
+                            ? AppLocalizations.getText('workout_time', widget.language)
                             : (_nextWorkoutDate != null
-                                  ? '次に運動日まで'
-                                  : '마지막 운동 이후'),
+                                  ? AppLocalizations.getText('next_workout', widget.language)
+                                  : AppLocalizations.getText('last_workout', widget.language)),
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
@@ -3028,7 +3052,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     child: Text(
-                      AppLocalizations.getText('start_workout', widget.language),
+                      AppLocalizations.getText(
+                        'start_workout',
+                        widget.language,
+                      ),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -3179,25 +3206,25 @@ class _CircularProgressPainter extends CustomPainter {
       }
     } else {
       // 평상시: 기존 방식 (배경 + 진행도)
-    final background = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16
-      ..color = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB)
-      ..strokeCap = StrokeCap.round;
+      final background = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 16
+        ..color = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB)
+        ..strokeCap = StrokeCap.round;
 
-    final foreground = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16
-      ..color = isDark ? Colors.white : const Color(0xFF111827)
-      ..strokeCap = StrokeCap.round;
+      final foreground = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 16
+        ..color = isDark ? Colors.white : const Color(0xFF111827)
+        ..strokeCap = StrokeCap.round;
 
-    // Base circle
-    canvas.drawCircle(center, radius, background);
+      // Base circle
+      canvas.drawCircle(center, radius, background);
 
-    // Progress arc (starts at -90 degrees)
-    final startAngle = -90 * 3.1415926535 / 180;
-    final sweepAngle = 2 * 3.1415926535 * progress.clamp(0.0, 1.0);
-    canvas.drawArc(rect, startAngle, sweepAngle, false, foreground);
+      // Progress arc (starts at -90 degrees)
+      final startAngle = -90 * 3.1415926535 / 180;
+      final sweepAngle = 2 * 3.1415926535 * progress.clamp(0.0, 1.0);
+      canvas.drawArc(rect, startAngle, sweepAngle, false, foreground);
     }
   }
 
@@ -3713,13 +3740,13 @@ class _RoutineScreenState extends State<RoutineScreen> {
               const SizedBox(height: 8),
 
               // 작성한 루틴
-              const Text(
-                '작성한 루틴',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              Text(
+                AppLocalizations.getText('created_routines', widget.language),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               if (_routines.isEmpty)
-                _buildEmptyCard('작성된 루틴이 없습니다.')
+                _buildEmptyCard(AppLocalizations.getText('no_routines', widget.language))
               else
                 Column(
                   children: _routines
@@ -3735,13 +3762,13 @@ class _RoutineScreenState extends State<RoutineScreen> {
               const SizedBox(height: 24),
 
               // 즐겨찾기 운동
-              const Text(
-                '즐겨찾기 운동',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              Text(
+                AppLocalizations.getText('favorite_exercises', widget.language),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               if (_favoriteExercises.isEmpty)
-                _buildEmptyCard('즐겨찾기한 운동이 없습니다.')
+                _buildEmptyCard(AppLocalizations.getText('no_favorites', widget.language))
               else
                 Wrap(
                   spacing: 8,
@@ -4167,7 +4194,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                child: const Text('시작'),
+                child: Text(AppLocalizations.getText('start_workout', widget.language)),
               ),
             ],
           ),
@@ -4942,17 +4969,17 @@ class _LogScreenState extends State<LogScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '몸무게 변화',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.getText('weight_change', widget.language),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 12),
                         if (_weightRecords.isEmpty)
-                        Text(
-                            '몸무게 기록이 없습니다',
+                          Text(
+                            AppLocalizations.getText('no_weight_records', widget.language),
                             style: TextStyle(
                               fontSize: 12,
                               color: widget.isDarkMode
@@ -4976,11 +5003,11 @@ class _LogScreenState extends State<LogScreen> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '시작: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).first.averageWeight.toStringAsFixed(1)}kg',
+                                      '${AppLocalizations.getText('start', widget.language)}: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).first.averageWeight.toStringAsFixed(1)}kg',
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                     Text(
-                                      '최근: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).last.averageWeight.toStringAsFixed(1)}kg',
+                                      '${AppLocalizations.getText('recent', widget.language)}: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).last.averageWeight.toStringAsFixed(1)}kg',
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                   ],
@@ -5034,9 +5061,9 @@ class _LogScreenState extends State<LogScreen> {
                                           style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   );
                                 }).toList(),
@@ -5125,8 +5152,9 @@ class _SettingScreenState extends State<SettingScreen> {
     final user = FirebaseService.currentUser;
 
     setState(() {
-      _userName = user?.displayName ?? 
-          prefs.getString('user_name') ?? 
+      _userName =
+          user?.displayName ??
+          prefs.getString('user_name') ??
           AppLocalizations.getText('user_name', widget.language);
       _userEmail =
           user?.email ?? prefs.getString('user_email') ?? 'user@example.com';
