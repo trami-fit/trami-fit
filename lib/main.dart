@@ -1511,6 +1511,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   return null;
                                 },
                                 defaultBuilder: (context, day, focusedDay) {
+                                  // 고정 운동일 표시 (요일칩과 연동)
+                                  final isFixedDay = _fixedWorkoutDays.contains(day.weekday % 7);
+                                  
+                                  if (isFixedDay) {
+                                    return Container(
+                                      margin: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFF87CEEB,
+                                        ).withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${day.day}',
+                                          style: TextStyle(
+                                            color: widget.isDarkMode
+                                                ? Colors.white
+                                                : Colors.black87,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
                                   return null;
                                 },
                               ),
