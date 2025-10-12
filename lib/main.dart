@@ -636,6 +636,24 @@ class AppLocalizations {
   }
 }
 
+// 몸무게 기록 모델
+class WeightRecord {
+  final DateTime date;
+  final double weight; // kg
+
+  WeightRecord({required this.date, required this.weight});
+
+  Map<String, dynamic> toJson() => {
+    'date': date.toIso8601String(),
+    'weight': weight,
+  };
+
+  factory WeightRecord.fromJson(Map<String, dynamic> json) => WeightRecord(
+    date: DateTime.parse(json['date']),
+    weight: json['weight'].toDouble(),
+  );
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -917,6 +935,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<DateTime> _workoutDays = [];
   List<int> _fixedWorkoutDays = []; // 0=Sunday, 1=Monday, etc.
   List<WorkoutRecord> _workoutRecords = [];
+  List<WeightRecord> _weightRecords = []; // 몸무게 기록
   DateTime? _nextWorkoutDate;
   List<DateTime> _scheduledDays = [];
   // _countdownProgress 변수 제거됨
@@ -954,7 +973,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _checkAndStartRoutine() {
-    if (widget.startWithRoutine != null && widget.startWithRoutine!.isNotEmpty) {
+    if (widget.startWithRoutine != null &&
+        widget.startWithRoutine!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_isWorkoutMode) {
           setState(() {
@@ -1004,6 +1024,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         .map((e) => jsonDecode(e) as Map<String, dynamic>)
         .toList();
 
+    // 몸무게 기록 로드
+    final weightRecordsJson = prefs.getStringList('weight_records') ?? [];
+    _weightRecords = weightRecordsJson
+        .map((e) => WeightRecord.fromJson(jsonDecode(e)))
+        .toList();
+
     _calculateNextWorkoutDate();
     setState(() {});
   }
@@ -1035,6 +1061,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _scheduledDays
           .map((e) => DateTime(e.year, e.month, e.day).toIso8601String())
           .toList(),
+    );
+
+    // 몸무게 기록 저장
+    await prefs.setStringList(
+      'weight_records',
+      _weightRecords.map((e) => jsonEncode(e.toJson())).toList(),
     );
   }
 
@@ -1643,6 +1675,123 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  void _showWeightInputDialog() {
+    final TextEditingController weightController = TextEditingController();
+
+    // 오늘의 기록이 있으면 기본값으로 표시
+    final today = DateTime.now();
+    final todayRecord = _weightRecords.where((record) {
+      return record.date.year == today.year &&
+          record.date.month == today.month &&
+          record.date.day == today.day;
+    }).firstOrNull;
+
+    if (todayRecord != null) {
+      weightController.text = todayRecord.weight.toString();
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '今日の体重',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: weightController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: '体重 (kg)',
+                  hintText: '例: 70.5',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.monitor_weight_outlined),
+                ),
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final weightText = weightController.text.trim();
+                final weight = double.tryParse(weightText);
+
+                if (weight != null && weight > 0 && weight < 500) {
+                  // 오늘 날짜의 기록 생성/업데이트
+                  final today = DateTime.now();
+                  final todayDate = DateTime(
+                    today.year,
+                    today.month,
+                    today.day,
+                  );
+
+                  // 기존 오늘 기록 제거
+                  _weightRecords.removeWhere((record) {
+                    return record.date.year == todayDate.year &&
+                        record.date.month == todayDate.month &&
+                        record.date.day == todayDate.day;
+                  });
+
+                  // 새 기록 추가
+                  _weightRecords.add(
+                    WeightRecord(date: todayDate, weight: weight),
+                  );
+
+                  // 날짜순 정렬
+                  _weightRecords.sort((a, b) => a.date.compareTo(b.date));
+
+                  _saveData();
+                  setState(() {});
+                  Navigator.of(context).pop();
+
+                  // 성공 스낵바
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '体重を記録しました: ${weight.toStringAsFixed(1)}kg',
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  // 에러 스낵바
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('正しい体重を入力してください'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF87CEEB),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('保存', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         );
       },
     );
@@ -2258,16 +2407,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           : Colors.grey[800],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey[600]!, width: 1),
-                    ),
-                    child: Icon(
-                      Icons.monitor_weight_outlined,
-                      color: Colors.grey[600],
-                      size: 16,
+                  GestureDetector(
+                    onTap: _showWeightInputDialog,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey[600]!, width: 1),
+                      ),
+                      child: Icon(
+                        Icons.monitor_weight_outlined,
+                        color: Colors.grey[600],
+                        size: 16,
+                      ),
                     ),
                   ),
                 ],
