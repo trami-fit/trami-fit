@@ -1611,60 +1611,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: List.generate(7, (index) {
-                                    final dayNames = [
-                                      '일',
-                                      '월',
-                                      '화',
-                                      '수',
-                                      '목',
-                                      '금',
-                                      '토',
+                                    final dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                                    final selected = _fixedWorkoutDays.contains(index);
+                                    final dayColors = [
+                                      Colors.red, // 일요일
+                                      Colors.grey[800]!,
+                                      Colors.grey[800]!,
+                                      Colors.grey[800]!,
+                                      Colors.grey[800]!,
+                                      Colors.grey[800]!,
+                                      Colors.blue, // 토요일
                                     ];
-                                    final selected = _fixedWorkoutDays
-                                        .contains(index);
-                                    return FilterChip(
-                                      label: Text(
-                                        dayNames[index],
-                                        style: TextStyle(
-                                          color: selected
-                                              ? Colors.white
-                                              : (widget.isDarkMode
+                                    
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              if (selected) {
+                                                _fixedWorkoutDays.remove(index);
+                                              } else {
+                                                _fixedWorkoutDays.add(index);
+                                              }
+                                              _fixedWorkoutDays.sort();
+                                              _saveData();
+                                              _calculateNextWorkoutDate();
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: selected
+                                                  ? const Color(0xFF87CEEB)
+                                                  : (widget.isDarkMode
+                                                      ? Colors.grey[700]
+                                                      : Colors.grey[200]),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              dayNames[index],
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: selected
                                                     ? Colors.white
-                                                    : Colors.black87),
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 11,
+                                                    : dayColors[index],
+                                                fontWeight: selected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.w500,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                      selected: selected,
-                                      onSelected: (bool value) {
-                                        setState(() {
-                                          if (value) {
-                                            if (!_fixedWorkoutDays.contains(
-                                              index,
-                                            )) {
-                                              _fixedWorkoutDays.add(index);
-                                            }
-                                          } else {
-                                            _fixedWorkoutDays.remove(index);
-                                          }
-                                          _fixedWorkoutDays.sort();
-                                          _saveData();
-                                          _calculateNextWorkoutDate();
-                                        });
-                                      },
-                                      selectedColor: const Color(
-                                        0xFF87CEEB,
-                                      ),
-                                      checkmarkColor: Colors.white,
-                                      backgroundColor: widget.isDarkMode
-                                          ? Colors.grey[700]
-                                          : Colors.grey[200],
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
                                     );
                                   }),
                                 ),
