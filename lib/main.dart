@@ -1773,7 +1773,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                   // 먼저 다이얼로그 닫기
                   Navigator.of(context).pop();
-                  
+
                   if (existingRecord != null) {
                     // 기존 기록이 있으면 weights 배열에 추가
                     final updatedWeights = [...existingRecord.weights, weight];
@@ -2592,10 +2592,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // 루틴명 박스 (운동 중일 때만 표시)
               if (_isWorkoutMode && _selectedWorkoutType.isNotEmpty)
                 Container(
-                  margin: const EdgeInsets.only(bottom: 15),
+                  margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                    horizontal: 12,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -2603,12 +2603,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4785EF).withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                        color: const Color(0xFF4785EF).withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
@@ -2618,13 +2618,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const Icon(
                         Icons.fitness_center,
                         color: Colors.white,
-                        size: 18,
+                        size: 14,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text(
                         _selectedWorkoutType,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
@@ -2638,8 +2638,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 alignment: Alignment.center,
                 children: [
                   SizedBox(
-                    width: 280,
-                    height: 280,
+                    width: 320,
+                    height: 320,
                     child: AnimatedBuilder(
                       animation: _gradientAnimation,
                       builder: (context, child) {
