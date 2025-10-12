@@ -19,7 +19,7 @@ class AppLocalizations {
       'routine': 'ルーティン',
       'log': 'ログ',
       'setting': '設定',
-      'start_workout': '運動を開始する',
+      'start_workout': 'スタート',
       'stop_workout': '運動を停止する',
       'pause_workout': '一時停止',
       'resume_workout': '再開',
@@ -249,13 +249,18 @@ class AppLocalizations {
       'week': '週',
       'category_analysis': 'カテゴリー別分析',
       'no_search_results': '検索結果がありません',
+      'my_routines': 'マイルーティン',
+      'created_routines': '作成したルーティン',
+      'favorite_exercises': 'お気に入り運動',
+      'no_routines': 'ルーティンがありません',
+      'no_favorites': 'お気に入りがありません',
     },
     '한국어': {
       'home': '홈',
       'routine': '루틴',
       'log': '로그',
       'setting': '설정',
-      'start_workout': '운동 시작',
+      'start_workout': '시작',
       'stop_workout': '운동 중지',
       'pause_workout': '일시정지',
       'resume_workout': '재개',
@@ -485,13 +490,18 @@ class AppLocalizations {
       'week': '주',
       'category_analysis': '카테고리별 분석',
       'no_search_results': '검색 결과가 없습니다',
+      'my_routines': '내 루틴',
+      'created_routines': '작성한 루틴',
+      'favorite_exercises': '즐겨찾기 운동',
+      'no_routines': '루틴이 없습니다',
+      'no_favorites': '즐겨찾기가 없습니다',
     },
     'English': {
       'home': 'Home',
       'routine': 'Routine',
       'log': 'Log',
       'setting': 'Setting',
-      'start_workout': 'Start Workout',
+      'start_workout': 'Start',
       'stop_workout': 'Stop Workout',
       'pause_workout': 'Pause',
       'resume_workout': 'Resume',
@@ -722,6 +732,11 @@ class AppLocalizations {
       'week': 'Week',
       'category_analysis': 'Category Analysis',
       'no_search_results': 'No search results',
+      'my_routines': 'My Routines',
+      'created_routines': 'Created Routines',
+      'favorite_exercises': 'Favorite Exercises',
+      'no_routines': 'No routines',
+      'no_favorites': 'No favorites',
     },
   };
 
@@ -3752,7 +3767,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
                               height: 120,
                               child: Center(
                                 child: Text(
-                                  AppLocalizations.getText('no_search_results', widget.language),
+                                  AppLocalizations.getText(
+                                    'no_search_results',
+                                    widget.language,
+                                  ),
                                   style: TextStyle(
                                     color: widget.isDarkMode
                                         ? Colors.grey[400]
