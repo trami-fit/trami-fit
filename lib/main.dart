@@ -8,7 +8,6 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'firebase_options.dart';
 
@@ -643,15 +642,19 @@ void main() async {
   // Firebase 초기화
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Remote Config 초기화
-  final remoteConfig = FirebaseRemoteConfig.instance;
-  await remoteConfig.setConfigSettings(
-    RemoteConfigSettings(
-      fetchTimeout: const Duration(minutes: 1),
-      minimumFetchInterval: const Duration(hours: 1),
-    ),
-  );
-  await remoteConfig.fetchAndActivate();
+  // Remote Config 초기화 (시뮬레이터에서는 비활성화)
+  // try {
+  //   final remoteConfig = FirebaseRemoteConfig.instance;
+  //   await remoteConfig.setConfigSettings(
+  //     RemoteConfigSettings(
+  //       fetchTimeout: const Duration(minutes: 1),
+  //       minimumFetchInterval: const Duration(hours: 1),
+  //     ),
+  //   );
+  //   await remoteConfig.fetchAndActivate();
+  // } catch (e) {
+  //   print('Remote Config 초기화 실패 (시뮬레이터에서 정상): $e');
+  // }
 
   runApp(const AuthWrapper());
 }
@@ -685,6 +688,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   bool _isDarkMode = false;
   String _selectedLanguage = '日本語';
+  String? _startRoutineName; // 시작할 루틴 이름
 
   @override
   void initState() {
@@ -713,8 +717,32 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   List<Widget> get _screens => [
-    HomeScreen(isDarkMode: _isDarkMode, language: _selectedLanguage),
-    RoutineScreen(isDarkMode: _isDarkMode, language: _selectedLanguage),
+    HomeScreen(
+      key: ValueKey(_startRoutineName), // 루틴 이름이 바뀌면 위젯 재생성
+      isDarkMode: _isDarkMode,
+      language: _selectedLanguage,
+      onNavigateToTab: (index) => setState(() => _currentIndex = index),
+      startWithRoutine: _startRoutineName,
+    ),
+    RoutineScreen(
+      isDarkMode: _isDarkMode,
+      language: _selectedLanguage,
+      onNavigateToTab: (index) => setState(() => _currentIndex = index),
+      onStartRoutine: (routineName) {
+        setState(() {
+          _startRoutineName = routineName;
+          _currentIndex = 0; // 홈탭으로 이동
+        });
+        // 다음 프레임에서 루틴 이름 초기화
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            setState(() {
+              _startRoutineName = null;
+            });
+          }
+        });
+      },
+    ),
     LogScreen(isDarkMode: _isDarkMode, language: _selectedLanguage),
     SettingScreen(
       isDarkMode: _isDarkMode,
@@ -838,21 +866,41 @@ class WorkoutRecord {
 class HomeScreen extends StatefulWidget {
   final bool isDarkMode;
   final String language;
+  final Function(int)? onNavigateToTab;
+  final String? startWithRoutine; // 시작할 루틴 이름
 
   const HomeScreen({
     super.key,
     required this.isDarkMode,
     required this.language,
+    this.onNavigateToTab,
+    this.startWithRoutine,
   });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Timer? _timer;
   bool _isWorkoutMode = false;
   bool _isPaused = false;
+  late AnimationController _gradientAnimationController;
+  late Animation<double> _gradientAnimation;
+  String _selectedWorkoutType = ''; // 선택된 운동/루틴 이름 저장
+  List<Map<String, dynamic>> _routines = []; // 루틴 리스트
+  final List<String> _allExercises = [
+    // 기본 운동
+    'squat',
+    'push_up',
+    'plank',
+    'lunges',
+    'burpees',
+    'mountain_climber',
+    'jumping_jacks',
+    'high_knees',
+    'butt_kicks',
+  ];
 
   // D-Day 카운트다운용 (현재는 하드코딩된 값 사용)
 
@@ -877,15 +925,36 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _gradientAnimationController = AnimationController(
+      duration: const Duration(seconds: 3), // 3초마다 한 바퀴
+      vsync: this,
+    );
+    _gradientAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _gradientAnimationController,
+        curve: Curves.linear, // 선형 애니메이션으로 끊김 없이
+      ),
+    );
+
     _loadData();
     _startCountdownTimer();
-    // 애니메이션 컨트롤러 초기화 제거됨
+
+    // 루틴으로 시작하는 경우
+    if (widget.startWithRoutine != null &&
+        widget.startWithRoutine!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedWorkoutType = widget.startWithRoutine!;
+        });
+        _startWorkoutMode();
+      });
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    // 애니메이션 컨트롤러 dispose 제거됨
+    _gradientAnimationController.dispose();
     super.dispose();
   }
 
@@ -913,6 +982,12 @@ class _HomeScreenState extends State<HomeScreen> {
     // 예정된 운동일 로드
     final scheduledJson = prefs.getStringList('scheduled_workout_days') ?? [];
     _scheduledDays = scheduledJson.map((e) => DateTime.parse(e)).toList();
+
+    // 루틴 데이터 로드
+    final routinesJson = prefs.getStringList('routines') ?? [];
+    _routines = routinesJson
+        .map((e) => jsonDecode(e) as Map<String, dynamic>)
+        .toList();
 
     _calculateNextWorkoutDate();
     setState(() {});
@@ -1161,13 +1236,22 @@ class _HomeScreenState extends State<HomeScreen> {
       _workoutSeconds = 0;
       _workoutStartTime = DateTime.now(); // 운동 시작 시간 저장
       _startWorkoutTimer();
-      // 애니메이션 컨트롤러 실행 제거됨
+
+      // 그라데이션 애니메이션 시작
+      _gradientAnimationController.repeat();
     });
   }
 
   void _pauseWorkout() {
     setState(() {
       _isPaused = !_isPaused;
+      if (_isPaused) {
+        // 일시정지 시 애니메이션 정지
+        _gradientAnimationController.stop();
+      } else {
+        // 재개 시 애니메이션 재시작
+        _gradientAnimationController.repeat();
+      }
     });
   }
 
@@ -1181,6 +1265,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _isPaused = false;
       _timer?.cancel();
 
+      // 그라데이션 애니메이션 정지
+      _gradientAnimationController.stop();
+
       // 운동 기록 저장
       final totalSeconds =
           _workoutHours * 3600 + _workoutMinutes * 60 + _workoutSeconds;
@@ -1190,7 +1277,7 @@ class _HomeScreenState extends State<HomeScreen> {
           startTime: _workoutStartTime!,
           endTime: endTime,
           duration: totalSeconds,
-          type: '근력운동',
+          type: _selectedWorkoutType.isNotEmpty ? _selectedWorkoutType : '근력운동',
         );
         _workoutRecords.add(record);
 
@@ -1599,6 +1686,310 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showWorkoutSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            padding: const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '운동 선택',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 루틴 리스트
+                Container(
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4785EF), Color(0xFF84CACD)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _showRoutineListDialog(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '루틴 리스트',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                // 운동 리스트
+                Container(
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _showExerciseListDialog(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '운동 리스트',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                // 취소 버튼
+                Container(
+                  width: double.infinity,
+                  height: 45,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[600],
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '취소',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRoutineListDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text(
+                  '루틴 리스트',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _routines.length, // 실제 루틴 개수
+                    itemBuilder: (context, index) {
+                      final routine = _routines[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 5),
+                        child: ListTile(
+                          title: Text(routine['name'] ?? '루틴 ${index + 1}'),
+                          subtitle: Text(
+                            '${(routine['exercises'] as List?)?.length ?? 0}개 운동',
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                          onTap: () {
+                            setState(() {
+                              _selectedWorkoutType =
+                                  routine['name'] ?? '루틴 ${index + 1}';
+                            });
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pop(); // 운동 선택 다이얼로그도 닫기
+                            _showFinishDialog(); // 운동 완료 다이얼로그로 돌아가기
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  height: 45,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[600],
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '닫기',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showExerciseListDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text(
+                  '운동 리스트',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _allExercises.length, // 실제 운동 개수
+                    itemBuilder: (context, index) {
+                      final exerciseKey = _allExercises[index];
+                      final exerciseName = AppLocalizations.getText(
+                        exerciseKey,
+                        widget.language,
+                      );
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 5),
+                        child: ListTile(
+                          title: Text(exerciseName),
+                          subtitle: const Text('개별 운동'),
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                          onTap: () {
+                            setState(() {
+                              _selectedWorkoutType = exerciseName;
+                            });
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pop(); // 운동 선택 다이얼로그도 닫기
+                            _showFinishDialog(); // 운동 완료 다이얼로그로 돌아가기
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  height: 45,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[600],
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '닫기',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showFinishDialog() {
     final totalSeconds =
         _workoutHours * 3600 + _workoutMinutes * 60 + _workoutSeconds;
@@ -1614,6 +2005,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
             padding: const EdgeInsets.all(30),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1640,68 +2032,133 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 30),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
-                        ),
-                        borderRadius: BorderRadius.circular(22),
+                const SizedBox(height: 20),
+
+                // 선택된 운동/루틴 표시
+                if (_selectedWorkoutType.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4785EF).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF4785EF),
+                        width: 1,
                       ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          // TODO: 다음 운동일 설정 화면으로 이동
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Text(
+                      '선택된 운동: $_selectedWorkoutType',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF4785EF),
+                      ),
+                    ),
+                  ),
+
+                if (_selectedWorkoutType.isNotEmpty) const SizedBox(height: 15),
+
+                // 운동 선택 버튼
+                Container(
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4785EF), Color(0xFF84CACD)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _showWorkoutSelectionDialog(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '운동 선택',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // 다음 운동일 설정과 체중 입력을 한 줄에 배치
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 45,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
                           ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
-                          '次の運動日設定',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            // TODO: 다음 운동일 설정 화면으로 이동
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            '다음 운동일 설정',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    Container(
-                      width: 120,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          // TODO: 체중 입력 화면으로 이동
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: 45,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
                           ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
-                          '体重の入力に',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            // TODO: 체중 입력 화면으로 이동
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            '체중 입력',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -1725,7 +2182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: const Text(
@@ -1913,19 +2370,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(
                     width: 320,
                     height: 320,
-                    child: CustomPaint(
-                      painter: _CircularProgressPainter(
-                        progress: (() {
-                          if (!_isWorkoutMode) return 0.0;
-                          final total =
-                              _workoutHours * 3600 +
-                              _workoutMinutes * 60 +
-                              _workoutSeconds;
-                          final capped = total % 2700; // 45 * 60
-                          return capped / 2700.0;
-                        })(),
-                        isDark: widget.isDarkMode,
-                      ),
+                    child: AnimatedBuilder(
+                      animation: _gradientAnimation,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: _CircularProgressPainter(
+                            progress: (() {
+                              if (!_isWorkoutMode) return 0.0;
+                              final total =
+                                  _workoutHours * 3600 +
+                                  _workoutMinutes * 60 +
+                                  _workoutSeconds;
+                              final capped = total % 2700; // 45 * 60
+                              return capped / 2700.0;
+                            })(),
+                            isDark: widget.isDarkMode,
+                            isWorkoutMode: _isWorkoutMode,
+                            animationValue: _gradientAnimation.value,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   Column(
@@ -1966,15 +2430,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 8),
                       Text(
                         _isWorkoutMode
-                            ? (_isPaused ? '一時停止中...' : '運動中...')
+                            ? (_isPaused
+                                  ? '一時停止中...'
+                                  : (_selectedWorkoutType.isNotEmpty
+                                        ? _selectedWorkoutType
+                                        : '運動中...'))
                             : (_nextWorkoutDate != null
                                   ? _getNextWorkoutDateText()
                                   : '카운트업 중'),
                         style: TextStyle(
                           fontSize: 14,
-                          color: _isWorkoutMode
-                              ? Colors.green[600]
-                              : Colors.grey[500],
+                          color: Colors.grey[500],
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -1985,18 +2451,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 40),
 
-              // Start workout button
+              // Start workout button - 심플 모던 디자인
               if (!_isWorkoutMode)
                 Container(
                   width: MediaQuery.of(context).size.width * 0.7,
                   height: 50,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFAEE8E6), Color(0xFF3DA8EF)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(25),
+                    color: const Color(0xFF87CEEB), // 심플한 파란색
+                    borderRadius: BorderRadius.circular(12), // 둥근 모서리
                   ),
                   child: ElevatedButton(
                     onPressed: _startWorkoutMode,
@@ -2004,7 +2466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: Text(
@@ -2021,36 +2483,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // 一時停止 버튼
+                    // 일시정지 버튼 - 심플 모던 디자인
                     Container(
                       width: MediaQuery.of(context).size.width * 0.35,
                       height: 50,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: _isPaused
-                              ? [
-                                  const Color(0xFF4CAF50),
-                                  const Color(0xFF66BB6A),
-                                ]
-                              : [
-                                  const Color(0xFFFFA726),
-                                  const Color(0xFFFFB74D),
-                                ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                (_isPaused
-                                        ? const Color(0xFF4CAF50)
-                                        : const Color(0xFFFFA726))
-                                    .withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        color: _isPaused
+                            ? const Color(0xFF4CAF50) // 재개시 녹색
+                            : const Color(0xFF666666), // 일시정지시 회색
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: ElevatedButton(
                         onPressed: _pauseWorkout,
@@ -2058,7 +2499,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: Text(
@@ -2079,24 +2520,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    // 終了 버튼
+                    // 중지 버튼 - 심플 모던 디자인
                     Container(
                       width: MediaQuery.of(context).size.width * 0.35,
                       height: 50,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFE57373), Color(0xFFEF5350)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFE57373).withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        color: const Color(0xFF666666), // 심플한 회색
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: ElevatedButton(
                         onPressed: _finishWorkout,
@@ -2104,7 +2534,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: Text(
@@ -2112,7 +2542,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             'stop_workout',
                             widget.language,
                           ),
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -2133,39 +2563,92 @@ class _HomeScreenState extends State<HomeScreen> {
 class _CircularProgressPainter extends CustomPainter {
   final double progress; // 0.0..1.0
   final bool isDark;
+  final bool isWorkoutMode;
+  final double animationValue; // 0.0..1.0
 
-  _CircularProgressPainter({required this.progress, required this.isDark});
+  _CircularProgressPainter({
+    required this.progress,
+    required this.isDark,
+    required this.isWorkoutMode,
+    required this.animationValue,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.shortestSide / 2) - 16;
-
-    final background = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16
-      ..color = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB)
-      ..strokeCap = StrokeCap.round;
-
-    final foreground = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16
-      ..color = isDark ? Colors.white : const Color(0xFF111827)
-      ..strokeCap = StrokeCap.round;
-
-    // Base circle
-    canvas.drawCircle(center, radius, background);
-
-    // Progress arc (starts at -90 degrees)
-    final startAngle = -90 * 3.1415926535 / 180;
-    final sweepAngle = 2 * 3.1415926535 * progress.clamp(0.0, 1.0);
     final rect = Rect.fromCircle(center: center, radius: radius);
-    canvas.drawArc(rect, startAngle, sweepAngle, false, foreground);
+
+    if (isWorkoutMode) {
+      // 운동 모드일 때: 둘레 전체를 파란색 그라데이션으로 (회전 애니메이션)
+      // SweepGradient 대신 여러 개의 Paint로 부드러운 그라데이션 구현
+      final segmentCount = 120; // 더 많은 세그먼트로 부드럽게
+      final segmentAngle = 2 * 3.1415926535 / segmentCount;
+
+      for (int i = 0; i < segmentCount; i++) {
+        final segmentStart =
+            -3.1415926535 / 2 +
+            (animationValue * 2 * 3.1415926535) +
+            (i * segmentAngle);
+        final progress = (i / segmentCount) % 1.0;
+
+        // 색상 보간
+        Color segmentColor;
+        if (progress < 0.5) {
+          // 0 ~ 0.5: 파란색에서 청록색으로
+          final t = progress * 2;
+          segmentColor = Color.lerp(Color(0xFF4785EF), Color(0xFF84CACD), t)!;
+        } else {
+          // 0.5 ~ 1.0: 청록색에서 파란색으로
+          final t = (progress - 0.5) * 2;
+          segmentColor = Color.lerp(Color(0xFF84CACD), Color(0xFF4785EF), t)!;
+        }
+
+        final segmentPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 16
+          ..strokeCap = StrokeCap.round
+          ..color = segmentColor;
+
+        final segmentRect = Rect.fromCircle(center: center, radius: radius);
+        canvas.drawArc(
+          segmentRect,
+          segmentStart,
+          segmentAngle,
+          false,
+          segmentPaint,
+        );
+      }
+    } else {
+      // 평상시: 기존 방식 (배경 + 진행도)
+      final background = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 16
+        ..color = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB)
+        ..strokeCap = StrokeCap.round;
+
+      final foreground = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 16
+        ..color = isDark ? Colors.white : const Color(0xFF111827)
+        ..strokeCap = StrokeCap.round;
+
+      // Base circle
+      canvas.drawCircle(center, radius, background);
+
+      // Progress arc (starts at -90 degrees)
+      final startAngle = -90 * 3.1415926535 / 180;
+      final sweepAngle = 2 * 3.1415926535 * progress.clamp(0.0, 1.0);
+      canvas.drawArc(rect, startAngle, sweepAngle, false, foreground);
+    }
   }
 
   @override
   bool shouldRepaint(covariant _CircularProgressPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.isDark != isDark;
+    return oldDelegate.progress != progress ||
+        oldDelegate.isDark != isDark ||
+        oldDelegate.isWorkoutMode != isWorkoutMode ||
+        oldDelegate.animationValue != animationValue;
   }
 }
 
@@ -2173,11 +2656,15 @@ class _CircularProgressPainter extends CustomPainter {
 class RoutineScreen extends StatefulWidget {
   final bool isDarkMode;
   final String language;
+  final Function(int)? onNavigateToTab;
+  final Function(String)? onStartRoutine; // 루틴 시작 콜백
 
   const RoutineScreen({
     super.key,
     required this.isDarkMode,
     required this.language,
+    this.onNavigateToTab,
+    this.onStartRoutine,
   });
 
   @override
@@ -3103,7 +3590,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
                 ],
               ),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  // 홈탭으로 이동하고 루틴 시작
+                  _startRoutineFromRoutineTab(meta['title'] as String);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
@@ -3146,6 +3636,14 @@ class _RoutineScreenState extends State<RoutineScreen> {
         ],
       ),
     );
+  }
+
+  void _startRoutineFromRoutineTab(String routineName) {
+    // 홈탭으로 이동하고 루틴 시작
+    if (widget.onStartRoutine != null) {
+      widget.onStartRoutine!(routineName);
+    }
+    print('🔥 루틴 시작: $routineName');
   }
 
   void _showCreateRoutineDialog() {
@@ -5856,7 +6354,7 @@ class FirebaseService {
   static final FirebaseRemoteConfig _remoteConfig =
       FirebaseRemoteConfig.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  // Google Sign In은 일시적으로 비활성화
+  // Google Sign In은 API 호환성 문제로 비활성화
   // static final GoogleSignIn _googleSignIn = GoogleSignIn(
   //   scopes: ['email', 'profile'],
   // );
@@ -5886,17 +6384,29 @@ class FirebaseService {
     return await _firestore.collection(collection).doc(docId).get();
   }
 
-  // Remote Config 값 가져오기
+  // Remote Config 값 가져오기 (시뮬레이터에서는 기본값 반환)
   static String getRemoteConfigString(String key, {String defaultValue = ''}) {
-    return _remoteConfig.getString(key);
+    try {
+      return _remoteConfig.getString(key);
+    } catch (e) {
+      return defaultValue;
+    }
   }
 
   static bool getRemoteConfigBool(String key, {bool defaultValue = false}) {
-    return _remoteConfig.getBool(key);
+    try {
+      return _remoteConfig.getBool(key);
+    } catch (e) {
+      return defaultValue;
+    }
   }
 
   static int getRemoteConfigInt(String key, {int defaultValue = 0}) {
-    return _remoteConfig.getInt(key);
+    try {
+      return _remoteConfig.getInt(key);
+    } catch (e) {
+      return defaultValue;
+    }
   }
 
   // 현재 사용자 가져오기
@@ -5905,10 +6415,9 @@ class FirebaseService {
   // 로그인 상태 스트림
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Google 로그인 (일시적으로 비활성화)
+  // Google 로그인 (API 호환성 문제로 비활성화)
   static Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Google Sign In API 문제로 인해 일시적으로 비활성화
       print('Google 로그인은 현재 사용할 수 없습니다.');
       return null;
     } catch (e) {
@@ -5940,6 +6449,21 @@ class FirebaseService {
       return userCredential;
     } catch (e) {
       print('Apple 로그인 오류: $e');
+      return null;
+    }
+  }
+
+  // 시뮬레이터용 임시 로그인 (개발용)
+  static Future<UserCredential?> signInAnonymously() async {
+    try {
+      final userCredential = await _auth.signInAnonymously();
+
+      // Analytics 이벤트 로깅
+      await logEvent('login', parameters: {'method': 'anonymous'});
+
+      return userCredential;
+    } catch (e) {
+      print('익명 로그인 오류: $e');
       return null;
     }
   }
@@ -6030,6 +6554,30 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInAnonymously() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final userCredential = await FirebaseService.signInAnonymously();
+      if (userCredential?.user != null) {
+        await FirebaseService.saveUserData(userCredential!.user!);
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const TramiApp()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('임시 로그인 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -6058,36 +6606,36 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 64),
 
-                // Google 로그인 버튼 (일시적으로 비활성화)
-                // SizedBox(
-                //   width: double.infinity,
-                //   height: 50,
-                //   child: ElevatedButton.icon(
-                //     onPressed: _isLoading ? null : _signInWithGoogle,
-                //     icon: Image.asset(
-                //       'assets/images/google_logo.png',
-                //       width: 20,
-                //       height: 20,
-                //       errorBuilder: (context, error, stackTrace) {
-                //         return const Icon(Icons.login, color: Colors.white);
-                //       },
-                //     ),
-                //     label: const Text(
-                //       'Google로 계속하기',
-                //       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                //     ),
-                //     style: ElevatedButton.styleFrom(
-                //       backgroundColor: Colors.white,
-                //       foregroundColor: Colors.black87,
-                //       elevation: 2,
-                //       shape: RoundedRectangleBorder(
-                //         borderRadius: BorderRadius.circular(8),
-                //       ),
-                //     ),
-                //   ),
-                // ),
+              // Google 로그인 버튼 (API 호환성 문제로 비활성화)
+              // SizedBox(
+              //   width: double.infinity,
+              //   height: 50,
+              //   child: ElevatedButton.icon(
+              //     onPressed: _isLoading ? null : _signInWithGoogle,
+              //     icon: Image.asset(
+              //       'assets/images/google_logo.png',
+              //       width: 20,
+              //       height: 20,
+              //       errorBuilder: (context, error, stackTrace) {
+              //         return const Icon(Icons.login, color: Colors.white);
+              //       },
+              //     ),
+              //     label: const Text(
+              //       'Google로 계속하기',
+              //       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              //     ),
+              //     style: ElevatedButton.styleFrom(
+              //       backgroundColor: Colors.white,
+              //       foregroundColor: Colors.black87,
+              //       elevation: 2,
+              //       shape: RoundedRectangleBorder(
+              //         borderRadius: BorderRadius.circular(8),
+              //       ),
+              //     ),
+              //   ),
+              // ),
 
-                // const SizedBox(height: 16),
+              // const SizedBox(height: 16),
 
               // Apple 로그인 버튼
               SizedBox(
@@ -6102,6 +6650,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // 시뮬레이터용 임시 로그인 버튼 (개발용)
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _signInAnonymously,
+                  icon: const Icon(Icons.person, color: Colors.white, size: 20),
+                  label: const Text(
+                    '시뮬레이터용 임시 로그인',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
                     elevation: 2,
                     shape: RoundedRectangleBorder(
@@ -6136,22 +6708,25 @@ class AuthWrapper extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'NotoSans',
       ),
-      home: StreamBuilder<User?>(
-        stream: FirebaseService.authStateChanges,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          if (snapshot.hasData) {
-            return const TramiApp();
-          } else {
-            return const LoginScreen();
-          }
-        },
-      ),
+      // 시뮬레이터 개발용: 로그인 화면 건너뛰기 (키체인 오류 해결)
+      home: const TramiApp(),
+      // 배포용: 아래 코드 사용
+      // home: StreamBuilder<User?>(
+      //   stream: FirebaseService.authStateChanges,
+      //   builder: (context, snapshot) {
+      //     if (snapshot.connectionState == ConnectionState.waiting) {
+      //       return const Scaffold(
+      //         body: Center(child: CircularProgressIndicator()),
+      //       );
+      //     }
+      //
+      //     if (snapshot.hasData) {
+      //       return const TramiApp();
+      //     } else {
+      //       return const LoginScreen();
+      //     }
+      //   },
+      // ),
     );
   }
 }
