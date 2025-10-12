@@ -1380,9 +1380,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: ConstrainedBox(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.8,
               maxWidth: MediaQuery.of(context).size.width * 0.9,
@@ -1571,18 +1573,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               setState(() {
                                 _selectedDay = selectedDay;
                                 _focusedDay = focusedDay;
-                                
+
                                 // 선택한 날짜를 예정일로 추가/제거
                                 final normalizedDate = DateTime(
                                   selectedDay.year,
                                   selectedDay.month,
                                   selectedDay.day,
                                 );
-                                
+
                                 final isAlreadyScheduled = _scheduledDays.any(
                                   (d) => isSameDay(d, normalizedDate),
                                 );
-                                
+
                                 if (isAlreadyScheduled) {
                                   // 이미 예정일이면 제거
                                   _scheduledDays.removeWhere(
@@ -1593,7 +1595,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   _scheduledDays.add(normalizedDate);
                                   _scheduledDays.sort();
                                 }
-                                
+
                                 _calculateNextWorkoutDate();
                                 _saveData();
                               });
@@ -1669,13 +1671,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         ),
                                         child: InkWell(
                                           onTap: () {
-                                            setState(() {
+                                            setDialogState(() {
                                               if (selected) {
                                                 _fixedWorkoutDays.remove(index);
                                               } else {
                                                 _fixedWorkoutDays.add(index);
                                               }
                                               _fixedWorkoutDays.sort();
+                                            });
+                                            setState(() {
                                               _saveData();
                                               _calculateNextWorkoutDate();
                                             });
@@ -1722,7 +1726,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ],
               ),
             ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
