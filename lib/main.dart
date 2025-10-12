@@ -1430,9 +1430,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Column(
                         children: [
-                          SizedBox(
-                            height: 400,
-                            child: TableCalendar<String>(
+                          TableCalendar<String>(
                               firstDay: DateTime.utc(2020, 1, 1),
                               lastDay: DateTime.utc(2030, 12, 31),
                               focusedDay: _focusedDay,
@@ -1585,7 +1583,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 return isSameDay(_selectedDay, day);
                               },
                             ),
-                          ),
                           const SizedBox(height: 8),
                           // Fixed workout days section
                           Container(
@@ -1890,10 +1887,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     const SizedBox(height: 20),
                     const Text(
                       '運動する曜日を選択してください',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     const SizedBox(height: 20),
                     // 요일 버튼들 (2줄로 배치)
@@ -1902,10 +1896,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (index) {
-                            final isSelected = _fixedWorkoutDays.contains(index);
+                            final isSelected = _fixedWorkoutDays.contains(
+                              index,
+                            );
                             return Expanded(
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 child: ElevatedButton(
                                   onPressed: () {
                                     setState(() {
@@ -1926,7 +1924,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     foregroundColor: isSelected
                                         ? Colors.white
                                         : dayColors[index],
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -1950,10 +1950,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(3, (index) {
                             final dayIndex = index + 4;
-                            final isSelected = _fixedWorkoutDays.contains(dayIndex);
+                            final isSelected = _fixedWorkoutDays.contains(
+                              dayIndex,
+                            );
                             return Expanded(
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 child: ElevatedButton(
                                   onPressed: () {
                                     setState(() {
@@ -1974,7 +1978,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     foregroundColor: isSelected
                                         ? Colors.white
                                         : dayColors[dayIndex],
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
