@@ -1385,9 +1385,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             return Dialog(
               backgroundColor: Colors.transparent,
               child: Container(
-              width: MediaQuery.of(context).size.width * 0.95,
+              width: MediaQuery.of(context).size.width * 0.98,
               height: MediaQuery.of(context).size.height * 0.65,
-              decoration: BoxDecoration(
+                decoration: BoxDecoration(
                   color: widget.isDarkMode
                       ? const Color(0xFF1E1E1E)
                       : Colors.white,
