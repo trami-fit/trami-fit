@@ -1571,6 +1571,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               setState(() {
                                 _selectedDay = selectedDay;
                                 _focusedDay = focusedDay;
+                                
+                                // 선택한 날짜를 예정일로 추가/제거
+                                final normalizedDate = DateTime(
+                                  selectedDay.year,
+                                  selectedDay.month,
+                                  selectedDay.day,
+                                );
+                                
+                                final isAlreadyScheduled = _scheduledDays.any(
+                                  (d) => isSameDay(d, normalizedDate),
+                                );
+                                
+                                if (isAlreadyScheduled) {
+                                  // 이미 예정일이면 제거
+                                  _scheduledDays.removeWhere(
+                                    (d) => isSameDay(d, normalizedDate),
+                                  );
+                                } else {
+                                  // 예정일로 추가
+                                  _scheduledDays.add(normalizedDate);
+                                  _scheduledDays.sort();
+                                }
+                                
+                                _calculateNextWorkoutDate();
+                                _saveData();
                               });
                             },
                             selectedDayPredicate: (day) {
@@ -1612,10 +1637,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ),
                                 const SizedBox(height: 6),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
                                   children: List.generate(7, (index) {
-                                    final dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-                                    final selected = _fixedWorkoutDays.contains(index);
+                                    final dayNames = [
+                                      '일',
+                                      '월',
+                                      '화',
+                                      '수',
+                                      '목',
+                                      '금',
+                                      '토',
+                                    ];
+                                    final selected = _fixedWorkoutDays.contains(
+                                      index,
+                                    );
                                     final dayColors = [
                                       Colors.red, // 일요일
                                       Colors.grey[800]!,
@@ -1625,10 +1661,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       Colors.grey[800]!,
                                       Colors.blue, // 토요일
                                     ];
-                                    
+
                                     return Expanded(
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 2,
+                                        ),
                                         child: InkWell(
                                           onTap: () {
                                             setState(() {
@@ -1643,14 +1681,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             });
                                           },
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: selected
                                                   ? const Color(0xFF87CEEB)
                                                   : (widget.isDarkMode
-                                                      ? Colors.grey[700]
-                                                      : Colors.grey[200]),
-                                              borderRadius: BorderRadius.circular(8),
+                                                        ? Colors.grey[700]
+                                                        : Colors.grey[200]),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               dayNames[index],
