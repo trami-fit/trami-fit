@@ -1472,8 +1472,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   fontWeight: FontWeight.bold,
                                 ),
                                 selectedDecoration: BoxDecoration(
-                                  color: const Color(0xFF87CEEB),
-                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF87CEEB).withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 // 예정된 날짜 스타일 (클릭 가능한 날짜들)
                                 markersMaxCount: 2,
@@ -1640,12 +1640,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 // 달력 팝업 내에서도 즉시 UI 업데이트
                                 setDialogState(() {});
                               },
-                              selectedDayPredicate: (day) {
-                                return isSameDay(_selectedDay, day) ||
-                                    _scheduledDays.any(
-                                      (d) => isSameDay(d, day),
-                                    );
-                              },
+                                selectedDayPredicate: (day) {
+                                  return isSameDay(_selectedDay, day);
+                                },
                             ),
                             const SizedBox(height: 8),
                             // Fixed workout days section
