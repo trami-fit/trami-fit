@@ -1853,51 +1853,174 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _showFixedWorkoutDaysDialog() {
-    List<int> tempFixedDays = List.from(_fixedWorkoutDays);
     final dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    final dayColors = [
+      Colors.red, // 일요일
+      Colors.grey[800]!, // 월요일
+      Colors.grey[800]!,
+      Colors.grey[800]!,
+      Colors.grey[800]!,
+      Colors.grey[800]!,
+      Colors.blue, // 토요일
+    ];
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('固定運動日設定'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(7, (index) {
-                  return CheckboxListTile(
-                    title: Text('${dayNames[index]}曜日'),
-                    value: tempFixedDays.contains(index),
-                    onChanged: (bool? value) {
-                      setDialogState(() {
-                        if (value == true) {
-                          tempFixedDays.add(index);
-                        } else {
-                          tempFixedDays.remove(index);
-                        }
-                      });
-                    },
-                  );
-                }),
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('キャンセル'),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                padding: const EdgeInsets.all(30),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '固定運動日設定',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      '運動する曜日を選択してください',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // 요일 버튼들 (2줄로 배치)
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(4, (index) {
+                            final isSelected = _fixedWorkoutDays.contains(index);
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        _fixedWorkoutDays.remove(index);
+                                      } else {
+                                        _fixedWorkoutDays.add(index);
+                                      }
+                                      _calculateNextWorkoutDate();
+                                    });
+                                    setDialogState(() {}); // 다이얼로그도 업데이트
+                                    _saveData();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isSelected
+                                        ? const Color(0xFF87CEEB)
+                                        : Colors.grey[200],
+                                    foregroundColor: isSelected
+                                        ? Colors.white
+                                        : dayColors[index],
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    dayNames[index],
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(3, (index) {
+                            final dayIndex = index + 4;
+                            final isSelected = _fixedWorkoutDays.contains(dayIndex);
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        _fixedWorkoutDays.remove(dayIndex);
+                                      } else {
+                                        _fixedWorkoutDays.add(dayIndex);
+                                      }
+                                      _calculateNextWorkoutDate();
+                                    });
+                                    setDialogState(() {}); // 다이얼로그도 업데이트
+                                    _saveData();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isSelected
+                                        ? const Color(0xFF87CEEB)
+                                        : Colors.grey[200],
+                                    foregroundColor: isSelected
+                                        ? Colors.white
+                                        : dayColors[dayIndex],
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    dayNames[dayIndex],
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // 닫기 버튼
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          '닫기',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _fixedWorkoutDays = tempFixedDays;
-                      _calculateNextWorkoutDate();
-                    });
-                    _saveData();
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('保存'),
-                ),
-              ],
+              ),
             );
           },
         );
