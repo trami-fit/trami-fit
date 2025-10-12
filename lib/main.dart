@@ -2361,13 +2361,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              const SizedBox(height: 60),
+              SizedBox(height: _isWorkoutMode && _selectedWorkoutType.isNotEmpty ? 30 : 60),
 
               // 루틴명 박스 (운동 중일 때만 표시)
               if (_isWorkoutMode && _selectedWorkoutType.isNotEmpty)
                 Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  margin: const EdgeInsets.only(bottom: 15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF4785EF), Color(0xFF84CACD)],
@@ -2378,8 +2381,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFF4785EF).withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
@@ -2389,13 +2392,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const Icon(
                         Icons.fitness_center,
                         color: Colors.white,
-                        size: 20,
+                        size: 18,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _selectedWorkoutType,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
@@ -2409,8 +2412,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 alignment: Alignment.center,
                 children: [
                   SizedBox(
-                    width: 320,
-                    height: 320,
+                    width: 280,
+                    height: 280,
                     child: AnimatedBuilder(
                       animation: _gradientAnimation,
                       builder: (context, child) {
@@ -2486,7 +2489,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ],
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
 
               // Start workout button - 심플 모던 디자인
               if (!_isWorkoutMode)
