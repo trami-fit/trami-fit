@@ -218,6 +218,8 @@ class AppLocalizations {
       'lateral_bound': 'ラテラルバウンド',
       'single_leg_hop': 'シングルレッグホップ',
       'plyo_push_up': 'プライオプッシュアップ',
+      'workout_pace': '運動ペース',
+      'weight_change': '体重の変化',
     },
     '한국어': {
       'home': '홈',
@@ -423,6 +425,8 @@ class AppLocalizations {
       'lateral_bound': '래터럴 바운드',
       'single_leg_hop': '외발 뛰기',
       'plyo_push_up': '플라이오 푸시업',
+      'workout_pace': '운동 페이스',
+      'weight_change': '체중 변화',
     },
     'English': {
       'home': 'Home',
@@ -628,6 +632,8 @@ class AppLocalizations {
       'lateral_bound': 'Lateral Bound',
       'single_leg_hop': 'Single Leg Hop',
       'plyo_push_up': 'Plyometric Push-Up',
+      'workout_pace': 'Workout Pace',
+      'weight_change': 'Weight Change',
     },
   };
 
@@ -1205,8 +1211,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final month = now.month;
     final day = now.day;
 
-    // 요일 계산
-    final weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+    // 요일 계산 - 언어별로 다르게
+    List<String> weekdays;
+    if (widget.language == '日本語') {
+      weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+    } else if (widget.language == '한국어') {
+      weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    } else {
+      weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    }
     final weekday = weekdays[now.weekday - 1];
 
     return '$month/$day($weekday)';
@@ -2776,7 +2789,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '今月の運動時間',
+                            AppLocalizations.getText('workout_time', widget.language),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -2806,7 +2819,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '体重の変化',
+                            AppLocalizations.getText('weight_change', widget.language),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -2836,7 +2849,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '運動ペース',
+                            AppLocalizations.getText('workout_pace', widget.language),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -3015,7 +3028,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     child: Text(
-                      '運動を開始する',
+                      AppLocalizations.getText('start_workout', widget.language),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -5098,7 +5111,7 @@ class SettingScreen extends StatefulWidget {
 }
 
 class _SettingScreenState extends State<SettingScreen> {
-  String _userName = 'ユーザー';
+  String _userName = '';
   String _userEmail = 'user@example.com';
 
   @override
@@ -5112,7 +5125,9 @@ class _SettingScreenState extends State<SettingScreen> {
     final user = FirebaseService.currentUser;
 
     setState(() {
-      _userName = user?.displayName ?? prefs.getString('user_name') ?? 'ユーザー';
+      _userName = user?.displayName ?? 
+          prefs.getString('user_name') ?? 
+          AppLocalizations.getText('user_name', widget.language);
       _userEmail =
           user?.email ?? prefs.getString('user_email') ?? 'user@example.com';
     });
