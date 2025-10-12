@@ -906,7 +906,7 @@ class _MainScreenState extends State<MainScreen> {
       body: _screens[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: _isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+          color: _isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
           boxShadow: [
             BoxShadow(
               color: _isDarkMode
@@ -1531,7 +1531,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 height: MediaQuery.of(context).size.height * 0.65,
                 decoration: BoxDecoration(
                   color: widget.isDarkMode
-                      ? const Color(0xFF1E1E1E)
+                      ? const Color(0xFF2A2A2A)
                       : Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
@@ -2348,12 +2348,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   '운동 선택',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -2479,12 +2479,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                const Text(
+                Text(
                   '루틴 리스트',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -2565,12 +2565,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                const Text(
+                Text(
                   '운동 리스트',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -2658,26 +2658,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'お疲れ様でした🎉',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   '今日の運動時間',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                  style: TextStyle(fontSize: 16, color: widget.isDarkMode ? Colors.grey[400] : Colors.black54),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   '$minutes分$seconds秒',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -3340,13 +3340,13 @@ class _CircularProgressPainter extends CustomPainter {
       final background = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 16
-        ..color = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB)
+        ..color = isDark ? const Color(0xFF404040) : const Color(0xFFE5E7EB)
         ..strokeCap = StrokeCap.round;
 
       final foreground = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 16
-        ..color = isDark ? Colors.white : const Color(0xFF111827)
+        ..color = isDark ? const Color(0xFF87CEEB) : const Color(0xFF111827)
         ..strokeCap = StrokeCap.round;
 
       // Base circle
@@ -3933,10 +3933,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateRoutineDialog,
-        backgroundColor: widget.isDarkMode ? Colors.white : Colors.black87,
-        child: Icon(
+        backgroundColor: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
+        child: const Icon(
           Icons.add,
-          color: widget.isDarkMode ? Colors.black : Colors.white,
+          color: Colors.white,
         ),
       ),
     );
@@ -4193,7 +4193,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -4222,7 +4222,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -4298,7 +4298,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -4340,7 +4340,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                   _startRoutineFromRoutineTab(meta['title'] as String);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
+                  backgroundColor: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -4522,7 +4522,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
           widthFactor: pct == 0 ? 0.02 : pct, // 최소 가시 폭
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.black87,
+              color: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -4765,7 +4765,7 @@ class _LogScreenState extends State<LogScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: widget.isDarkMode
-                      ? const Color(0xFF1E1E1E)
+                      ? const Color(0xFF2A2A2A)
                       : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
@@ -4903,7 +4903,7 @@ class _LogScreenState extends State<LogScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: widget.isDarkMode
-                      ? const Color(0xFF1E1E1E)
+                      ? const Color(0xFF2A2A2A)
                       : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
@@ -5294,7 +5294,7 @@ class _LogScreenState extends State<LogScreen> {
           Container(
             height: h,
             decoration: BoxDecoration(
-              color: Colors.black87,
+              color: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
               borderRadius: BorderRadius.circular(8),
             ),
           ),
@@ -5669,7 +5669,7 @@ class _SettingScreenState extends State<SettingScreen> {
         ),
         Container(
           decoration: BoxDecoration(
-            color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+            color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -5794,7 +5794,7 @@ class _SettingScreenState extends State<SettingScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -5843,7 +5843,7 @@ class _SettingScreenState extends State<SettingScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -6078,7 +6078,7 @@ class _CreateRoutineDialogState extends State<_CreateRoutineDialog> {
           maxWidth: MediaQuery.of(context).size.width * 0.9,
         ),
         decoration: BoxDecoration(
-          color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+          color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
@@ -6835,7 +6835,7 @@ class _RoutineAnalysisDialog extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.9,
         ),
         decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+          color: isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
