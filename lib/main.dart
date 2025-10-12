@@ -1770,8 +1770,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             onTap: () {
                                               setDialogState(() {
                                                 if (selected) {
+                                                  // 고정요일 해제 시 해당 요일의 모든 제외 날짜도 삭제
                                                   _fixedWorkoutDays.remove(
                                                     index,
+                                                  );
+                                                  // 해당 요일의 모든 제외 날짜 제거
+                                                  _excludedDays.removeWhere(
+                                                    (date) => date.weekday % 7 == index,
                                                   );
                                                 } else {
                                                   _fixedWorkoutDays.add(index);
