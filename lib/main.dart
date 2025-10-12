@@ -1463,7 +1463,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   fontWeight: FontWeight.bold,
                                 ),
                                 selectedDecoration: BoxDecoration(
-                                  color: Colors.transparent,
+                                  color: const Color(0xFF87CEEB).withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 // 예정된 날짜 스타일 (클릭 가능한 날짜들)
                                 markersMaxCount: 2,
@@ -1506,8 +1507,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   final isFixedDay = _fixedWorkoutDays.contains(
                                     day.weekday % 7,
                                   );
+                                  
+                                  // 개별 선택된 날짜 표시
+                                  final isIndividuallySelected = _scheduledDays.any(
+                                    (scheduledDay) => isSameDay(scheduledDay, day),
+                                  );
 
-                                  if (isFixedDay) {
+                                  if (isFixedDay || isIndividuallySelected) {
                                     return Container(
                                       margin: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
@@ -1532,9 +1538,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   return null;
                                 },
                               ),
-                              onDaySelected: null,
+                              onDaySelected: (selectedDay, focusedDay) {
+                                setDialogState(() {
+                                  setState(() {
+                                    // 개별 날짜 선택/해제
+                                    final isAlreadySelected = _scheduledDays.any(
+                                      (day) => isSameDay(day, selectedDay),
+                                    );
+                                    
+                                    if (isAlreadySelected) {
+                                      // 이미 선택된 날짜면 해제
+                                      _scheduledDays.removeWhere(
+                                        (day) => isSameDay(day, selectedDay),
+                                      );
+                                    } else {
+                                      // 선택되지 않은 날짜면 추가
+                                      _scheduledDays.add(selectedDay);
+                                    }
+                                    
+                                    _selectedDay = selectedDay;
+                                    _focusedDay = focusedDay;
+                                    _calculateNextWorkoutDate();
+                                    _saveData();
+                                  });
+                                });
+                              },
                               selectedDayPredicate: (day) {
-                                return false;
+                                return isSameDay(_selectedDay, day);
                               },
                             ),
                             const SizedBox(height: 8),
