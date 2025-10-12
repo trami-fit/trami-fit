@@ -718,7 +718,6 @@ class _MainScreenState extends State<MainScreen> {
 
   List<Widget> get _screens => [
     HomeScreen(
-      key: ValueKey(_startRoutineName), // 루틴 이름이 바뀌면 위젯 재생성
       isDarkMode: _isDarkMode,
       language: _selectedLanguage,
       onNavigateToTab: (index) => setState(() => _currentIndex = index),
@@ -940,13 +939,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _startCountdownTimer();
 
     // 루틴으로 시작하는 경우
+    _checkAndStartRoutine();
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 루틴 이름이 변경되었을 때만 시작
     if (widget.startWithRoutine != null &&
-        widget.startWithRoutine!.isNotEmpty) {
+        widget.startWithRoutine!.isNotEmpty &&
+        widget.startWithRoutine != oldWidget.startWithRoutine) {
+      _checkAndStartRoutine();
+    }
+  }
+
+  void _checkAndStartRoutine() {
+    if (widget.startWithRoutine != null && widget.startWithRoutine!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _selectedWorkoutType = widget.startWithRoutine!;
-        });
-        _startWorkoutMode();
+        if (mounted && !_isWorkoutMode) {
+          setState(() {
+            _selectedWorkoutType = widget.startWithRoutine!;
+          });
+          _startWorkoutMode();
+        }
       });
     }
   }
@@ -2361,7 +2376,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              SizedBox(height: _isWorkoutMode && _selectedWorkoutType.isNotEmpty ? 30 : 60),
+              SizedBox(
+                height: _isWorkoutMode && _selectedWorkoutType.isNotEmpty
+                    ? 30
+                    : 60,
+              ),
 
               // 루틴명 박스 (운동 중일 때만 표시)
               if (_isWorkoutMode && _selectedWorkoutType.isNotEmpty)
