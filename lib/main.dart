@@ -1473,7 +1473,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ),
                                 selectedDecoration: BoxDecoration(
                                   color: const Color(0xFF87CEEB),
-                                  borderRadius: BorderRadius.circular(8),
+                                  shape: BoxShape.circle,
                                 ),
                                 // 예정된 날짜 스타일 (클릭 가능한 날짜들)
                                 markersMaxCount: 2,
