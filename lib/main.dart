@@ -248,6 +248,7 @@ class AppLocalizations {
       'total': '合計',
       'week': '週',
       'category_analysis': 'カテゴリー別分析',
+      'no_search_results': '検索結果がありません',
     },
     '한국어': {
       'home': '홈',
@@ -483,6 +484,7 @@ class AppLocalizations {
       'total': '총',
       'week': '주',
       'category_analysis': '카테고리별 분석',
+      'no_search_results': '검색 결과가 없습니다',
     },
     'English': {
       'home': 'Home',
@@ -719,6 +721,7 @@ class AppLocalizations {
       'total': 'Total',
       'week': 'Week',
       'category_analysis': 'Category Analysis',
+      'no_search_results': 'No search results',
     },
   };
 
@@ -1999,8 +2002,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.getText('weight_kg', widget.language),
-                  hintText: AppLocalizations.getText('weight_placeholder', widget.language),
+                  labelText: AppLocalizations.getText(
+                    'weight_kg',
+                    widget.language,
+                  ),
+                  hintText: AppLocalizations.getText(
+                    'weight_placeholder',
+                    widget.language,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -2097,7 +2106,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   // 에러 스낵바
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(AppLocalizations.getText('correct_weight', widget.language)),
+                      content: Text(
+                        AppLocalizations.getText(
+                          'correct_weight',
+                          widget.language,
+                        ),
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -2109,7 +2123,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(AppLocalizations.getText('save', widget.language), style: const TextStyle(color: Colors.white)),
+              child: Text(
+                AppLocalizations.getText('save', widget.language),
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -3735,7 +3752,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                               height: 120,
                               child: Center(
                                 child: Text(
-                                  '검색 결과가 없습니다',
+                                  AppLocalizations.getText('no_search_results', widget.language),
                                   style: TextStyle(
                                     color: widget.isDarkMode
                                         ? Colors.grey[400]
@@ -4976,7 +4993,10 @@ class _LogScreenState extends State<LogScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          AppLocalizations.getText('weekly_workout', widget.language),
+                          AppLocalizations.getText(
+                            'weekly_workout',
+                            widget.language,
+                          ),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -5035,7 +5055,10 @@ class _LogScreenState extends State<LogScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          AppLocalizations.getText('category_analysis', widget.language),
+                          AppLocalizations.getText(
+                            'category_analysis',
+                            widget.language,
+                          ),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -5044,7 +5067,10 @@ class _LogScreenState extends State<LogScreen> {
                         const SizedBox(height: 8),
                         if (_categoryMinutesThisMonth.isEmpty)
                           Text(
-                            AppLocalizations.getText('no_records', widget.language),
+                            AppLocalizations.getText(
+                              'no_records',
+                              widget.language,
+                            ),
                             style: TextStyle(
                               color: widget.isDarkMode
                                   ? Colors.grey[400]
