@@ -639,19 +639,36 @@ class AppLocalizations {
 // 몸무게 기록 모델
 class WeightRecord {
   final DateTime date;
-  final double weight; // kg
+  final List<double> weights; // 하루에 여러 번 입력 가능
 
-  WeightRecord({required this.date, required this.weight});
+  WeightRecord({required this.date, required this.weights});
+
+  // 평균 몸무게 계산
+  double get averageWeight {
+    if (weights.isEmpty) return 0.0;
+    return weights.reduce((a, b) => a + b) / weights.length;
+  }
 
   Map<String, dynamic> toJson() => {
     'date': date.toIso8601String(),
-    'weight': weight,
+    'weights': weights,
   };
 
-  factory WeightRecord.fromJson(Map<String, dynamic> json) => WeightRecord(
-    date: DateTime.parse(json['date']),
-    weight: json['weight'].toDouble(),
-  );
+  factory WeightRecord.fromJson(Map<String, dynamic> json) {
+    // 기존 데이터 호환성을 위해 weight 필드도 확인
+    if (json.containsKey('weights')) {
+      return WeightRecord(
+        date: DateTime.parse(json['date']),
+        weights: (json['weights'] as List<dynamic>).map((e) => (e as num).toDouble()).toList(),
+      );
+    } else {
+      // 기존 단일 weight 값을 배열로 변환
+      return WeightRecord(
+        date: DateTime.parse(json['date']),
+        weights: [json['weight'].toDouble()],
+      );
+    }
+  }
 }
 
 void main() async {
@@ -1683,16 +1700,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _showWeightInputDialog() {
     final TextEditingController weightController = TextEditingController();
 
-    // 오늘의 기록이 있으면 기본값으로 표시
+    // 오늘의 기록이 있으면 평균값을 기본값으로 표시
     final today = DateTime.now();
     final todayRecord = _weightRecords.where((record) {
       return record.date.year == today.year &&
           record.date.month == today.month &&
           record.date.day == today.day;
     }).firstOrNull;
-
+    
     if (todayRecord != null) {
-      weightController.text = todayRecord.weight.toString();
+      weightController.text = todayRecord.averageWeight.toStringAsFixed(1);
     }
 
     showDialog(
@@ -1745,17 +1762,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     today.day,
                   );
 
-                  // 기존 오늘 기록 제거
-                  _weightRecords.removeWhere((record) {
+                  // 기존 오늘 기록 찾기
+                  final existingRecord = _weightRecords.where((record) {
                     return record.date.year == todayDate.year &&
                         record.date.month == todayDate.month &&
                         record.date.day == todayDate.day;
-                  });
+                  }).firstOrNull;
 
-                  // 새 기록 추가
-                  _weightRecords.add(
-                    WeightRecord(date: todayDate, weight: weight),
-                  );
+                  if (existingRecord != null) {
+                    // 기존 기록이 있으면 weights 배열에 추가
+                    final updatedWeights = [...existingRecord.weights, weight];
+                    final avgWeight = updatedWeights.reduce((a, b) => a + b) / updatedWeights.length;
+                    
+                    // 기존 기록 제거하고 업데이트된 기록 추가
+                    _weightRecords.removeWhere((record) {
+                      return record.date.year == todayDate.year &&
+                          record.date.month == todayDate.month &&
+                          record.date.day == todayDate.day;
+                    });
+                    _weightRecords.add(
+                      WeightRecord(date: todayDate, weights: updatedWeights),
+                    );
+                    
+                    // 성공 스낵바 (평균값 표시)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '体重を記録しました: ${weight.toStringAsFixed(1)}kg\n平均: ${avgWeight.toStringAsFixed(1)}kg (${updatedWeights.length}回)',
+                        ),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  } else {
+                    // 새 기록 추가
+                    _weightRecords.add(
+                      WeightRecord(date: todayDate, weights: [weight]),
+                    );
+                    
+                    // 성공 스낵바
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '体重を記録しました: ${weight.toStringAsFixed(1)}kg',
+                        ),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
 
                   // 날짜순 정렬
                   _weightRecords.sort((a, b) => a.date.compareTo(b.date));
@@ -1763,16 +1816,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   _saveData();
                   setState(() {});
                   Navigator.of(context).pop();
-
-                  // 성공 스낵바
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '体重を記録しました: ${weight.toStringAsFixed(1)}kg',
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
                 } else {
                   // 에러 스낵바
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -4081,7 +4124,9 @@ class _LogScreenState extends State<LogScreen> {
 
     setState(() {
       _weightRecords =
-          weightRecordsJson.map((e) => WeightRecord.fromJson(jsonDecode(e))).toList()
+          weightRecordsJson
+              .map((e) => WeightRecord.fromJson(jsonDecode(e)))
+              .toList()
             ..sort((a, b) => a.date.compareTo(b.date)); // 날짜순 정렬
     });
   }
@@ -4615,25 +4660,23 @@ class _LogScreenState extends State<LogScreen> {
                           Column(
                             children: [
                               // 이번 달 몸무게 데이터
-                              if (_weightRecords.where((r) => 
-                                r.date.year == _currentMonth.year && 
-                                r.date.month == _currentMonth.month
-                              ).isNotEmpty) ...[
+                              if (_weightRecords
+                                  .where(
+                                    (r) =>
+                                        r.date.year == _currentMonth.year &&
+                                        r.date.month == _currentMonth.month,
+                                  )
+                                  .isNotEmpty) ...[
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '시작: ${_weightRecords.where((r) => 
-                                        r.date.year == _currentMonth.year && 
-                                        r.date.month == _currentMonth.month
-                                      ).first.weight.toStringAsFixed(1)}kg',
+                                      '시작: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).first.averageWeight.toStringAsFixed(1)}kg',
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                     Text(
-                                      '최근: ${_weightRecords.where((r) => 
-                                        r.date.year == _currentMonth.year && 
-                                        r.date.month == _currentMonth.month
-                                      ).last.weight.toStringAsFixed(1)}kg',
+                                      '최근: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).last.averageWeight.toStringAsFixed(1)}kg',
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                   ],
@@ -4646,10 +4689,15 @@ class _LogScreenState extends State<LogScreen> {
                                 child: CustomPaint(
                                   size: Size(double.infinity, 100),
                                   painter: WeightGraphPainter(
-                                    records: _weightRecords.where((r) => 
-                                      r.date.year == _currentMonth.year && 
-                                      r.date.month == _currentMonth.month
-                                    ).toList(),
+                                    records: _weightRecords
+                                        .where(
+                                          (r) =>
+                                              r.date.year ==
+                                                  _currentMonth.year &&
+                                              r.date.month ==
+                                                  _currentMonth.month,
+                                        )
+                                        .toList(),
                                     isDark: widget.isDarkMode,
                                   ),
                                 ),
@@ -4657,11 +4705,16 @@ class _LogScreenState extends State<LogScreen> {
                               const SizedBox(height: 12),
                               // 최근 7개 기록 표시
                               Column(
-                                children: _weightRecords.reversed.take(7).map((record) {
+                                children: _weightRecords.reversed.take(7).map((
+                                  record,
+                                ) {
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           '${record.date.month}/${record.date.day}',
@@ -4673,7 +4726,7 @@ class _LogScreenState extends State<LogScreen> {
                                           ),
                                         ),
                                         Text(
-                                          '${record.weight.toStringAsFixed(1)}kg',
+                                          '${record.averageWeight.toStringAsFixed(1)}kg',
                                           style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
@@ -7048,36 +7101,73 @@ class WeightGraphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (records.isEmpty) return;
 
-    final paint = Paint()
+    // 그래프 영역 설정 (여백 추가)
+    const leftPadding = 40.0;
+    const rightPadding = 10.0;
+    const topPadding = 10.0;
+    const bottomPadding = 30.0;
+
+    final graphWidth = size.width - leftPadding - rightPadding;
+    final graphHeight = size.height - topPadding - bottomPadding;
+
+    // 최소/최대 몸무게 찾기 (평균값 사용)
+    final weights = records.map((r) => r.averageWeight).toList();
+    final minWeight = weights.reduce((a, b) => a < b ? a : b);
+    final maxWeight = weights.reduce((a, b) => a > b ? a : b);
+    final weightRange = maxWeight - minWeight;
+    final padding = weightRange > 0 ? weightRange * 0.1 : 1.0; // 여백
+
+    final minY = minWeight - padding;
+    final maxY = maxWeight + padding;
+    final yRange = maxY - minY;
+
+    if (yRange == 0) {
+      // 모든 값이 같은 경우 수평선 그리기
+      final y = topPadding + graphHeight / 2;
+      canvas.drawLine(
+        Offset(leftPadding, y),
+        Offset(leftPadding + graphWidth, y),
+        Paint()
+          ..color = const Color(0xFF4785EF)
+          ..strokeWidth = 2,
+      );
+      return;
+    }
+
+    // Y축 그리기
+    final axisPaint = Paint()
+      ..color = (isDark ? Colors.grey[700] : Colors.grey[300])!
+      ..strokeWidth = 1;
+    canvas.drawLine(
+      Offset(leftPadding, topPadding),
+      Offset(leftPadding, topPadding + graphHeight),
+      axisPaint,
+    );
+
+    // X축 그리기
+    canvas.drawLine(
+      Offset(leftPadding, topPadding + graphHeight),
+      Offset(leftPadding + graphWidth, topPadding + graphHeight),
+      axisPaint,
+    );
+
+    // 선과 점 그리기
+    final linePaint = Paint()
       ..color = const Color(0xFF4785EF)
-      ..strokeWidth = 2
+      ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
 
     final dotPaint = Paint()
       ..color = const Color(0xFF4785EF)
       ..style = PaintingStyle.fill;
 
-    // 최소/최대 몸무게 찾기
-    final weights = records.map((r) => r.weight).toList();
-    final minWeight = weights.reduce((a, b) => a < b ? a : b);
-    final maxWeight = weights.reduce((a, b) => a > b ? a : b);
-    final weightRange = maxWeight - minWeight;
-    final padding = weightRange * 0.2; // 여백
-
-    final minY = minWeight - padding;
-    final maxY = maxWeight + padding;
-    final yRange = maxY - minY;
-
-    if (yRange == 0) return; // 모든 값이 같은 경우
-
-    // 포인트 계산
     final path = Path();
     final points = <Offset>[];
 
     for (int i = 0; i < records.length; i++) {
-      final x = (size.width / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
-      final normalizedY = (records[i].weight - minY) / yRange;
-      final y = size.height - (normalizedY * size.height);
+      final x = leftPadding + (graphWidth / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
+      final normalizedY = (records[i].averageWeight - minY) / yRange;
+      final y = topPadding + graphHeight - (normalizedY * graphHeight);
       points.add(Offset(x, y));
 
       if (i == 0) {
@@ -7087,14 +7177,45 @@ class WeightGraphPainter extends CustomPainter {
       }
     }
 
-    // 선 그리기
-    canvas.drawPath(path, paint);
+    // 꺾은선 그리기
+    canvas.drawPath(path, linePaint);
 
     // 점 그리기
     for (final point in points) {
-      canvas.drawCircle(point, 4, dotPaint);
-      canvas.drawCircle(point, 3, Paint()..color = Colors.white);
+      canvas.drawCircle(point, 5, dotPaint);
+      canvas.drawCircle(point, 4, Paint()..color = Colors.white);
     }
+
+    // Y축 라벨 그리기 (최소, 최대값)
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.right,
+    );
+
+    // 최대값
+    textPainter.text = TextSpan(
+      text: '${maxWeight.toStringAsFixed(1)}',
+      style: TextStyle(
+        color: isDark ? Colors.grey[400] : Colors.grey[600],
+        fontSize: 10,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(0, topPadding - textPainter.height / 2));
+
+    // 최소값
+    textPainter.text = TextSpan(
+      text: '${minWeight.toStringAsFixed(1)}',
+      style: TextStyle(
+        color: isDark ? Colors.grey[400] : Colors.grey[600],
+        fontSize: 10,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(0, topPadding + graphHeight - textPainter.height / 2),
+    );
   }
 
   @override
