@@ -1463,7 +1463,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   fontWeight: FontWeight.bold,
                                 ),
                                 selectedDecoration: BoxDecoration(
-                                  color: const Color(0xFF87CEEB).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFF87CEEB,
+                                  ).withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 // 예정된 날짜 스타일 (클릭 가능한 날짜들)
@@ -1472,7 +1474,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   color: const Color(
                                     0xFF87CEEB,
                                   ).withOpacity(0.2),
-                                  shape: BoxShape.circle,
+                                  borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: const Color(0xFF87CEEB),
                                     width: 2,
@@ -1507,11 +1509,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   final isFixedDay = _fixedWorkoutDays.contains(
                                     day.weekday % 7,
                                   );
-                                  
+
                                   // 개별 선택된 날짜 표시
-                                  final isIndividuallySelected = _scheduledDays.any(
-                                    (scheduledDay) => isSameDay(scheduledDay, day),
-                                  );
+                                  final isIndividuallySelected = _scheduledDays
+                                      .any(
+                                        (scheduledDay) =>
+                                            isSameDay(scheduledDay, day),
+                                      );
 
                                   if (isFixedDay || isIndividuallySelected) {
                                     return Container(
@@ -1542,10 +1546,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 setDialogState(() {
                                   setState(() {
                                     // 개별 날짜 선택/해제
-                                    final isAlreadySelected = _scheduledDays.any(
-                                      (day) => isSameDay(day, selectedDay),
-                                    );
-                                    
+                                    final isAlreadySelected = _scheduledDays
+                                        .any(
+                                          (day) => isSameDay(day, selectedDay),
+                                        );
+
                                     if (isAlreadySelected) {
                                       // 이미 선택된 날짜면 해제
                                       _scheduledDays.removeWhere(
@@ -1555,7 +1560,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       // 선택되지 않은 날짜면 추가
                                       _scheduledDays.add(selectedDay);
                                     }
-                                    
+
                                     _selectedDay = selectedDay;
                                     _focusedDay = focusedDay;
                                     _calculateNextWorkoutDate();
