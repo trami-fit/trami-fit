@@ -1385,8 +1385,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             return Dialog(
               backgroundColor: Colors.transparent,
               child: Container(
-              width: MediaQuery.of(context).size.width - 10,
-              height: MediaQuery.of(context).size.height * 0.65,
+                width: MediaQuery.of(context).size.width - 10,
+                height: MediaQuery.of(context).size.height * 0.65,
                 decoration: BoxDecoration(
                   color: widget.isDarkMode
                       ? const Color(0xFF1E1E1E)
@@ -1601,6 +1601,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   _calculateNextWorkoutDate();
                                   _saveData();
                                 });
+                                
+                                // 달력 팝업 내에서도 즉시 UI 업데이트
+                                setDialogState(() {});
                               },
                               selectedDayPredicate: (day) {
                                 return isSameDay(_selectedDay, day);
