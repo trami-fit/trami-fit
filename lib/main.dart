@@ -1434,16 +1434,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               focusedDay: _focusedDay,
                               calendarFormat: CalendarFormat.month,
                               eventLoader: (day) {
-                                final isDone = _workoutDays.any(
-                                  (d) => isSameDay(d, day),
-                                );
-                                final isScheduled = _scheduledDays.any(
-                                  (d) => isSameDay(d, day),
-                                );
-                                final List<String> events = [];
-                                if (isDone) events.add('done');
-                                if (isScheduled) events.add('scheduled');
-                                return events;
+                                return [];
                               },
                               startingDayOfWeek: StartingDayOfWeek.sunday,
                               calendarStyle: CalendarStyle(
@@ -1512,8 +1503,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 },
                                 defaultBuilder: (context, day, focusedDay) {
                                   // 고정 운동일 표시 (요일칩과 연동)
-                                  final isFixedDay = _fixedWorkoutDays.contains(day.weekday % 7);
-                                  
+                                  final isFixedDay = _fixedWorkoutDays.contains(
+                                    day.weekday % 7,
+                                  );
+
                                   if (isFixedDay) {
                                     return Container(
                                       margin: const EdgeInsets.all(4),
