@@ -1472,8 +1472,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   fontWeight: FontWeight.bold,
                                 ),
                                 selectedDecoration: BoxDecoration(
-                                  color: const Color(0xFF87CEEB),
-                                  shape: BoxShape.circle,
+                                  color: Colors.transparent,
                                 ),
                                 // 예정된 날짜 스타일 (클릭 가능한 날짜들)
                                 markersMaxCount: 2,
@@ -1606,42 +1605,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   return null;
                                 },
                               ),
-                              onDaySelected: (selectedDay, focusedDay) {
-                                setState(() {
-                                  _selectedDay = selectedDay;
-                                  _focusedDay = focusedDay;
-
-                                  // 선택한 날짜를 예정일로 추가/제거
-                                  final normalizedDate = DateTime(
-                                    selectedDay.year,
-                                    selectedDay.month,
-                                    selectedDay.day,
-                                  );
-
-                                  final isAlreadyScheduled = _scheduledDays.any(
-                                    (d) => isSameDay(d, normalizedDate),
-                                  );
-
-                                  if (isAlreadyScheduled) {
-                                    // 이미 예정일이면 제거
-                                    _scheduledDays.removeWhere(
-                                      (d) => isSameDay(d, normalizedDate),
-                                    );
-                                  } else {
-                                    // 예정일로 추가
-                                    _scheduledDays.add(normalizedDate);
-                                    _scheduledDays.sort();
-                                  }
-
-                                  _calculateNextWorkoutDate();
-                                  _saveData();
-                                });
-
-                                // 달력 팝업 내에서도 즉시 UI 업데이트
-                                setDialogState(() {});
-                              },
+                              onDaySelected: null,
                               selectedDayPredicate: (day) {
-                                return isSameDay(_selectedDay, day);
+                                return false;
                               },
                             ),
                             const SizedBox(height: 8),
