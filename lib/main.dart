@@ -1463,6 +1463,53 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  String _getWorkoutPaceText() {
+    if (_workoutDays.isEmpty) {
+      // 운동 기록이 없을 때
+      if (widget.language == '日本語') {
+        return '0日';
+      } else if (widget.language == '한국어') {
+        return '0일';
+      } else {
+        return '0 days';
+      }
+    }
+
+    if (_workoutDays.length == 1) {
+      // 운동을 한 번만 했을 때
+      if (widget.language == '日本語') {
+        return '集計中...';
+      } else if (widget.language == '한국어') {
+        return '집계중...';
+      } else {
+        return 'Calculating...';
+      }
+    }
+
+    // 운동 날짜들을 정렬
+    final sortedDays = List<DateTime>.from(_workoutDays)
+      ..sort((a, b) => a.compareTo(b));
+
+    // 연속된 운동 날짜 간의 간격 계산
+    List<int> gaps = [];
+    for (int i = 1; i < sortedDays.length; i++) {
+      final gap = sortedDays[i].difference(sortedDays[i - 1]).inDays;
+      gaps.add(gap);
+    }
+
+    // 평균 계산
+    final averageGap = gaps.reduce((a, b) => a + b) / gaps.length;
+
+    // 언어별 텍스트 반환
+    if (widget.language == '日本語') {
+      return '${averageGap.toStringAsFixed(1)}日';
+    } else if (widget.language == '한국어') {
+      return '${averageGap.toStringAsFixed(1)}일';
+    } else {
+      return '${averageGap.toStringAsFixed(1)} days';
+    }
+  }
+
   String _getCountdownText() {
     if (_isWorkoutMode) {
       // 운동 중일 때는 스탑워치 형식
@@ -3217,39 +3264,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     // Divider
                     Container(height: 40, width: 1, color: Colors.grey[300]),
-                    // Middle section - Weight change
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            AppLocalizations.getText(
-                              'weight_change',
-                              widget.language,
-                            ),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w400,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '+2.3kg',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.w400,
-                              fontFamily: 'Hiragino Sans',
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Divider
-                    Container(height: 40, width: 1, color: Colors.grey[300]),
                     // Right section - Exercise pace
                     Expanded(
                       child: Column(
@@ -3269,7 +3283,7 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '3.6日',
+                            _getWorkoutPaceText(),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[800],
