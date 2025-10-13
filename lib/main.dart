@@ -836,10 +836,25 @@ class _MainScreenState extends State<MainScreen> {
   String _selectedLanguage = '日本語';
   String? _startRoutineName; // 시작할 루틴 이름
 
+  // 운동 상태 관리 - ValueNotifier로 변경하여 성능 최적화
+  final ValueNotifier<bool> _isWorkoutActive = ValueNotifier(false);
+  final ValueNotifier<bool> _isWorkoutPaused = ValueNotifier(false);
+  final ValueNotifier<String> _workoutType = ValueNotifier('');
+  final ValueNotifier<String> _workoutTime = ValueNotifier('00:00:00');
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _isWorkoutActive.dispose();
+    _isWorkoutPaused.dispose();
+    _workoutType.dispose();
+    _workoutTime.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -862,12 +877,29 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _updateWorkoutStatus({
+    required bool isActive,
+    required bool isPaused,
+    required String workoutType,
+    required int hours,
+    required int minutes,
+    required int seconds,
+  }) {
+    // ValueNotifier 사용으로 setState 제거 - 전체 rebuild 방지!
+    _isWorkoutActive.value = isActive;
+    _isWorkoutPaused.value = isPaused;
+    _workoutType.value = workoutType;
+    _workoutTime.value =
+        '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
   List<Widget> get _screens => [
     HomeScreen(
       isDarkMode: _isDarkMode,
       language: _selectedLanguage,
       onNavigateToTab: (index) => setState(() => _currentIndex = index),
       startWithRoutine: _startRoutineName,
+      onWorkoutStatusChanged: _updateWorkoutStatus,
     ),
     RoutineScreen(
       isDarkMode: _isDarkMode,
@@ -903,57 +935,157 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: _isDarkMode
           ? const Color(0xFF121212)
           : const Color(0xFFF8F9FA),
-      body: _screens[_currentIndex],
-      bottomNavigationBar: Container(
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 미니 플레이어 (운동 중이고 홈 탭이 아닐 때만 표시)
+          ValueListenableBuilder<bool>(
+            valueListenable: _isWorkoutActive,
+            builder: (context, isActive, child) {
+              if (isActive && _currentIndex != 0) {
+                return _buildMiniWorkoutPlayer();
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          // 하단 네비게이션 바
+          Container(
+            decoration: BoxDecoration(
+              color: _isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: _isDarkMode
+                      ? Colors.black.withOpacity(0.3)
+                      : Colors.black12,
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: (index) => setState(() => _currentIndex = index),
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: const Color(0xFF87CEEB),
+              unselectedItemColor: _isDarkMode ? Colors.grey[400] : Colors.grey,
+              selectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+              items: [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'HOME',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.fitness_center_outlined),
+                  activeIcon: Icon(Icons.fitness_center),
+                  label: 'ROUTINE',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.analytics_outlined),
+                  activeIcon: Icon(Icons.analytics),
+                  label: 'LOG',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings),
+                  label: 'SETTING',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniWorkoutPlayer() {
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = 0), // 홈 탭으로 이동
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: _isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4785EF), Color(0xFF84CACD)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
           boxShadow: [
             BoxShadow(
-              color: _isDarkMode
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.black12,
+              color: Colors.black.withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: const Color(0xFF87CEEB),
-          unselectedItemColor: _isDarkMode ? Colors.grey[400] : Colors.grey,
-          selectedLabelStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
-          ),
-          items: [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'HOME',
+        child: Row(
+          children: [
+            // 아이콘
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.fitness_center,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.fitness_center_outlined),
-              activeIcon: Icon(Icons.fitness_center),
-              label: 'ROUTINE',
+            const SizedBox(width: 12),
+            // 운동 정보
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ValueListenableBuilder<String>(
+                    valueListenable: _workoutType,
+                    builder: (context, type, child) {
+                      return Text(
+                        type.isNotEmpty ? type : '운동 중',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 2),
+                  ValueListenableBuilder<String>(
+                    valueListenable: _workoutTime,
+                    builder: (context, time, child) {
+                      return ValueListenableBuilder<bool>(
+                        valueListenable: _isWorkoutPaused,
+                        builder: (context, isPaused, child) {
+                          return Text(
+                            isPaused ? '일시정지 중' : time,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 12,
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.analytics_outlined),
-              activeIcon: Icon(Icons.analytics),
-              label: 'LOG',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'SETTING',
-            ),
+            // 화살표
+            const Icon(Icons.keyboard_arrow_up, color: Colors.white, size: 24),
           ],
         ),
       ),
@@ -1013,6 +1145,15 @@ class HomeScreen extends StatefulWidget {
   final String language;
   final Function(int)? onNavigateToTab;
   final String? startWithRoutine; // 시작할 루틴 이름
+  final Function({
+    required bool isActive,
+    required bool isPaused,
+    required String workoutType,
+    required int hours,
+    required int minutes,
+    required int seconds,
+  })?
+  onWorkoutStatusChanged;
 
   const HomeScreen({
     super.key,
@@ -1020,18 +1161,23 @@ class HomeScreen extends StatefulWidget {
     required this.language,
     this.onNavigateToTab,
     this.startWithRoutine,
+    this.onWorkoutStatusChanged,
   });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   Timer? _timer;
   bool _isWorkoutMode = false;
   bool _isPaused = false;
   late AnimationController _gradientAnimationController;
   late Animation<double> _gradientAnimation;
+
+  @override
+  bool get wantKeepAlive => true;
   String _selectedWorkoutType = ''; // 선택된 운동/루틴 이름 저장
   List<Map<String, dynamic>> _routines = []; // 루틴 리스트
   final List<String> _allExercises = [
@@ -1088,6 +1234,56 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // 루틴으로 시작하는 경우
     _checkAndStartRoutine();
+
+    // 앱 재시작 시 운동 상태 복구
+    _restoreWorkoutState();
+  }
+
+  Future<void> _restoreWorkoutState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final workoutStartTime = prefs.getString('workout_start_time');
+    final workoutType = prefs.getString('workout_type');
+    final isPaused = prefs.getBool('workout_paused') ?? false;
+    final pausedAt = prefs.getString('workout_paused_at');
+    final totalPausedSeconds = prefs.getInt('total_paused_seconds') ?? 0;
+
+    if (workoutStartTime != null) {
+      final startTime = DateTime.parse(workoutStartTime);
+      final now = DateTime.now();
+
+      setState(() {
+        _isWorkoutMode = true;
+        _isPaused = isPaused;
+        _selectedWorkoutType = workoutType ?? '';
+        _workoutStartTime = startTime;
+
+        // 경과 시간 계산
+        int elapsedSeconds =
+            now.difference(startTime).inSeconds - totalPausedSeconds;
+
+        // 일시정지 중이었다면 추가 경과 시간 계산
+        if (isPaused && pausedAt != null) {
+          final pausedTime = DateTime.parse(pausedAt);
+          final additionalPaused = now.difference(pausedTime).inSeconds;
+          elapsedSeconds -= additionalPaused;
+        }
+
+        _workoutHours = elapsedSeconds ~/ 3600;
+        _workoutMinutes = (elapsedSeconds % 3600) ~/ 60;
+        _workoutSeconds = elapsedSeconds % 60;
+
+        // 타이머 재시작
+        if (!isPaused) {
+          _startWorkoutTimer();
+          _gradientAnimationController.repeat();
+        }
+      });
+
+      _notifyWorkoutStatus();
+      print(
+        '✅ 운동 상태 복구됨: ${_workoutHours}h ${_workoutMinutes}m ${_workoutSeconds}s',
+      );
+    }
   }
 
   @override
@@ -1428,11 +1624,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             }
           }
         });
+        _notifyWorkoutStatus();
       }
     });
   }
 
-  void _startWorkoutMode() {
+  void _notifyWorkoutStatus() {
+    widget.onWorkoutStatusChanged?.call(
+      isActive: _isWorkoutMode,
+      isPaused: _isPaused,
+      workoutType: _selectedWorkoutType.isNotEmpty
+          ? _selectedWorkoutType
+          : '운동',
+      hours: _workoutHours,
+      minutes: _workoutMinutes,
+      seconds: _workoutSeconds,
+    );
+  }
+
+  void _startWorkoutMode() async {
+    final startTime = DateTime.now();
+
     setState(() {
       _isWorkoutMode = true;
       _isPaused = false;
@@ -1442,32 +1654,77 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _workoutHours = 0;
       _workoutMinutes = 0;
       _workoutSeconds = 0;
-      _workoutStartTime = DateTime.now(); // 운동 시작 시간 저장
+      _workoutStartTime = startTime;
       _startWorkoutTimer();
 
       // 그라데이션 애니메이션 시작
       _gradientAnimationController.repeat();
     });
+
+    // SharedPreferences에 운동 시작 시간 저장
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('workout_start_time', startTime.toIso8601String());
+    await prefs.setString(
+      'workout_type',
+      _selectedWorkoutType.isNotEmpty ? _selectedWorkoutType : '운동',
+    );
+    await prefs.setBool('workout_paused', false);
+    await prefs.setInt('total_paused_seconds', 0);
+
+    _notifyWorkoutStatus();
+    print('✅ 운동 시작 - 시간 저장됨');
   }
 
-  void _pauseWorkout() {
+  void _pauseWorkout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+
     setState(() {
       _isPaused = !_isPaused;
       if (_isPaused) {
         // 일시정지 시 애니메이션 정지
         _gradientAnimationController.stop();
+
+        // 일시정지 시간 저장
+        prefs.setString('workout_paused_at', now.toIso8601String());
+        prefs.setBool('workout_paused', true);
+        print('⏸️ 운동 일시정지');
       } else {
         // 재개 시 애니메이션 재시작
         _gradientAnimationController.repeat();
+
+        // 일시정지 시간 계산 및 누적
+        final pausedAt = prefs.getString('workout_paused_at');
+        if (pausedAt != null) {
+          final pausedTime = DateTime.parse(pausedAt);
+          final pausedDuration = now.difference(pausedTime).inSeconds;
+          final totalPaused =
+              (prefs.getInt('total_paused_seconds') ?? 0) + pausedDuration;
+
+          prefs.setInt('total_paused_seconds', totalPaused);
+          prefs.remove('workout_paused_at');
+        }
+        prefs.setBool('workout_paused', false);
+        print('▶️ 운동 재개');
       }
     });
+    _notifyWorkoutStatus();
   }
 
   void _finishWorkout() {
     _showFinishDialog();
   }
 
-  void _endWorkout() {
+  void _endWorkout() async {
+    // SharedPreferences에서 운동 상태 삭제
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('workout_start_time');
+    await prefs.remove('workout_type');
+    await prefs.remove('workout_paused');
+    await prefs.remove('workout_paused_at');
+    await prefs.remove('total_paused_seconds');
+    print('🏁 운동 종료 - 상태 삭제됨');
+
     setState(() {
       _isWorkoutMode = false;
       _isPaused = false;
@@ -1510,6 +1767,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _startCountdownTimer();
       // 애니메이션 컨트롤러 정지 제거됨
     });
+    _notifyWorkoutStatus();
   }
 
   void _showCalendarDialog() {
@@ -2669,7 +2927,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 20),
                 Text(
                   '今日の運動時間',
-                  style: TextStyle(fontSize: 16, color: widget.isDarkMode ? Colors.grey[400] : Colors.black54),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: widget.isDarkMode
+                        ? Colors.grey[400]
+                        : Colors.black54,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -2853,6 +3116,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Keep state alive when switching tabs
     return Scaffold(
       backgroundColor: widget.isDarkMode
           ? const Color(0xFF121212)
@@ -3119,7 +3383,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     )),
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey[600],
+                          color: widget.isDarkMode
+                              ? Colors.grey[300]
+                              : Colors.grey[600],
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -3131,20 +3397,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         style: TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
+                          color: widget.isDarkMode
+                              ? Colors.white
+                              : Colors.grey[800],
                           letterSpacing: 2,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '目標 45:00',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Text(
                         _isWorkoutMode
                             ? (_isPaused ? '一時停止中...' : '運動中...')
@@ -3153,7 +3412,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   : '카운트업 중'),
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[500],
+                          color: widget.isDarkMode
+                              ? Colors.grey[300]
+                              : Colors.grey[500],
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -3340,13 +3601,13 @@ class _CircularProgressPainter extends CustomPainter {
       final background = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 16
-        ..color = isDark ? const Color(0xFF404040) : const Color(0xFFE5E7EB)
+        ..color = isDark ? const Color(0xFF505050) : const Color(0xFFE5E7EB)
         ..strokeCap = StrokeCap.round;
 
       final foreground = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 16
-        ..color = isDark ? const Color(0xFF87CEEB) : const Color(0xFF111827)
+        ..color = isDark ? const Color(0xFFAAD4F5) : const Color(0xFF111827)
         ..strokeCap = StrokeCap.round;
 
       // Base circle
@@ -3387,7 +3648,11 @@ class RoutineScreen extends StatefulWidget {
   State<RoutineScreen> createState() => _RoutineScreenState();
 }
 
-class _RoutineScreenState extends State<RoutineScreen> {
+class _RoutineScreenState extends State<RoutineScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final TextEditingController _searchController = TextEditingController();
   late FocusNode _searchFocus;
   OverlayEntry? _searchOverlay;
@@ -3841,6 +4106,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Keep state alive when switching tabs
     return Scaffold(
       backgroundColor: widget.isDarkMode
           ? const Color(0xFF121212)
@@ -3857,9 +4123,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
                 children: [
                   Text(
                     AppLocalizations.getText('my_routines', widget.language),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
+                      color: widget.isDarkMode ? Colors.white : Colors.black87,
                     ),
                   ),
                   IconButton(
@@ -3882,9 +4149,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
               // 작성한 루틴
               Text(
                 AppLocalizations.getText('created_routines', widget.language),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
+                  color: widget.isDarkMode ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
@@ -3894,14 +4162,87 @@ class _RoutineScreenState extends State<RoutineScreen> {
                 )
               else
                 Column(
-                  children: _routines
-                      .map(
-                        (r) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: _buildRoutineListCard(r),
+                  children: [
+                    ..._routines
+                        .take(5)
+                        .map(
+                          (r) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: _buildRoutineListCard(r),
+                          ),
                         ),
-                      )
-                      .toList(),
+                    if (_routines.length > 5)
+                      GestureDetector(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AllRoutinesScreen(
+                                isDarkMode: widget.isDarkMode,
+                                language: widget.language,
+                                routines: _routines,
+                                allExercises: _allExercises,
+                                onRoutineCreated: (routine) {
+                                  setState(() {
+                                    _routines.add(routine);
+                                  });
+                                  _saveData();
+                                },
+                                onRoutineDeleted: (routine) {
+                                  setState(() {
+                                    _routines.remove(routine);
+                                  });
+                                  _saveData();
+                                },
+                                onStartRoutine: widget.onStartRoutine,
+                              ),
+                            ),
+                          );
+                          // 돌아왔을 때 데이터 새로고침
+                          _loadData();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.isDarkMode
+                                ? const Color(0xFF2A2A2A)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: widget.isDarkMode
+                                  ? Colors.white12
+                                  : Colors.black12,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '더보기 (${_routines.length - 5}개)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: widget.isDarkMode
+                                      ? Colors.grey[300]
+                                      : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                size: 14,
+                                color: widget.isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
 
               const SizedBox(height: 24),
@@ -3909,9 +4250,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
               // 즐겨찾기 운동
               Text(
                 AppLocalizations.getText('favorite_exercises', widget.language),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
+                  color: widget.isDarkMode ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
@@ -3933,11 +4275,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateRoutineDialog,
-        backgroundColor: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
+        backgroundColor: widget.isDarkMode
+            ? const Color(0xFF4785EF)
+            : Colors.black87,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -4238,7 +4579,13 @@ class _RoutineScreenState extends State<RoutineScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: widget.isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
           const SizedBox(width: 6),
           GestureDetector(
             onTap: () => _toggleFavorite(exerciseKey),
@@ -4322,15 +4669,21 @@ class _RoutineScreenState extends State<RoutineScreen> {
                 children: [
                   Text(
                     meta['title'] as String,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
+                      color: widget.isDarkMode ? Colors.white : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${meta['time']} · ${meta['level']}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: widget.isDarkMode
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
                   ),
                 ],
               ),
@@ -4340,7 +4693,9 @@ class _RoutineScreenState extends State<RoutineScreen> {
                   _startRoutineFromRoutineTab(meta['title'] as String);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
+                  backgroundColor: widget.isDarkMode
+                      ? const Color(0xFF4785EF)
+                      : Colors.black87,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -4376,7 +4731,12 @@ class _RoutineScreenState extends State<RoutineScreen> {
               ),
               Text(
                 '$sessions회 · ${minutes ~/ 60}시간${minutes % 60}분',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: widget.isDarkMode
+                      ? Colors.grey[400]
+                      : Colors.grey[600],
+                ),
               ),
             ],
           ),
@@ -4512,7 +4872,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
       width: 40,
       height: 10,
       decoration: BoxDecoration(
-        color: Colors.grey[300],
+        color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.grey[300],
         borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.antiAlias,
@@ -4522,7 +4882,9 @@ class _RoutineScreenState extends State<RoutineScreen> {
           widthFactor: pct == 0 ? 0.02 : pct, // 최소 가시 폭
           child: Container(
             decoration: BoxDecoration(
-              color: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
+              color: widget.isDarkMode
+                  ? const Color(0xFF4785EF)
+                  : Colors.black87,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -4579,7 +4941,11 @@ class LogScreen extends StatefulWidget {
   State<LogScreen> createState() => _LogScreenState();
 }
 
-class _LogScreenState extends State<LogScreen> {
+class _LogScreenState extends State<LogScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   List<WorkoutRecord> _workoutRecords = [];
   List<WeightRecord> _weightRecords = []; // 몸무게 기록 추가
   DateTime _currentMonth = DateTime(
@@ -4730,6 +5096,7 @@ class _LogScreenState extends State<LogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Keep state alive when switching tabs
     final logsForSelected = _logsOn(_selectedDate);
     final weekly = _weeklyMinutes;
     final totalMin = weekly.fold<int>(0, (a, b) => a + b);
@@ -4790,9 +5157,12 @@ class _LogScreenState extends State<LogScreen> {
                         ),
                         Text(
                           '${_currentMonth.year}. ${_currentMonth.month}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: widget.isDarkMode
+                                ? Colors.white
+                                : Colors.black87,
                           ),
                         ),
                         IconButton(
@@ -4804,14 +5174,63 @@ class _LogScreenState extends State<LogScreen> {
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text('일'),
-                        Text('월'),
-                        Text('화'),
-                        Text('수'),
-                        Text('목'),
-                        Text('금'),
-                        Text('토'),
+                      children: [
+                        Text(
+                          '일',
+                          style: TextStyle(
+                            color: widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          '월',
+                          style: TextStyle(
+                            color: widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          '화',
+                          style: TextStyle(
+                            color: widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          '수',
+                          style: TextStyle(
+                            color: widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          '목',
+                          style: TextStyle(
+                            color: widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          '금',
+                          style: TextStyle(
+                            color: widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          '토',
+                          style: TextStyle(
+                            color: widget.isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -4865,24 +5284,26 @@ class _LogScreenState extends State<LogScreen> {
                                 Center(
                                   child: Text(
                                     '${d.day}',
-                                    style: const TextStyle(fontSize: 12),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: widget.isDarkMode
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
                                   ),
                                 ),
                                 if (hasLog)
                                   Positioned(
-                                    bottom: 6,
-                                    left: 0,
-                                    right: 0,
-                                    child: Center(
-                                      child: Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: widget.isDarkMode
-                                              ? Colors.white
-                                              : Colors.black,
-                                          shape: BoxShape.circle,
-                                        ),
+                                    bottom: 4,
+                                    right: 4,
+                                    child: Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        color: widget.isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                        shape: BoxShape.circle,
                                       ),
                                     ),
                                   ),
@@ -4892,39 +5313,26 @@ class _LogScreenState extends State<LogScreen> {
                         );
                       },
                     ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 16),
-
-              // Selected date logs
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: widget.isDarkMode
-                      ? const Color(0xFF2A2A2A)
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                    // Divider between calendar and records
+                    const SizedBox(height: 16),
+                    Divider(
+                      color: widget.isDarkMode
+                          ? Colors.white12
+                          : Colors.black12,
+                      thickness: 1,
                     ),
-                  ],
-                  border: Border.all(
-                    color: widget.isDarkMode ? Colors.white12 : Colors.black12,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    const SizedBox(height: 16),
+
+                    // Selected date logs
                     Text(
                       '${_fmt(_selectedDate)} ${AppLocalizations.getText('records', widget.language)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
+                        color: widget.isDarkMode
+                            ? Colors.white
+                            : Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -4938,44 +5346,91 @@ class _LogScreenState extends State<LogScreen> {
                         ),
                       )
                     else
-                      ...logsForSelected.map(
-                        (l) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l.type,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                      Column(
+                        children: [
+                          ...logsForSelected
+                              .take(3)
+                              .map(
+                                (l) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${l.duration ~/ 60}분',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            l.type,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: widget.isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${l.duration ~/ 60}분',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: widget.isDarkMode
+                                                  ? Colors.grey[400]
+                                                  : Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        _formatDuration(l.duration),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: widget.isDarkMode
+                                              ? Colors.grey[300]
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              Text(
-                                _formatDuration(l.duration),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: widget.isDarkMode
-                                      ? Colors.grey[300]
-                                      : Colors.black87,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                          if (logsForSelected.length > 3)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: GestureDetector(
+                                onTap: () {
+                                  _showAllRecordsDialog(logsForSelected);
+                                },
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '더보기 (${logsForSelected.length - 3}개)',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: widget.isDarkMode
+                                            ? const Color(0xFF4785EF)
+                                            : Colors.blue,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 12,
+                                      color: widget.isDarkMode
+                                          ? const Color(0xFF4785EF)
+                                          : Colors.blue,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                   ],
                 ),
@@ -5015,9 +5470,12 @@ class _LogScreenState extends State<LogScreen> {
                             'weekly_workout',
                             widget.language,
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: widget.isDarkMode
+                                ? Colors.white
+                                : Colors.black87,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -5077,9 +5535,12 @@ class _LogScreenState extends State<LogScreen> {
                             'category_analysis',
                             widget.language,
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: widget.isDarkMode
+                                ? Colors.white
+                                : Colors.black87,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -5109,14 +5570,21 @@ class _LogScreenState extends State<LogScreen> {
                                   Expanded(
                                     child: Text(
                                       e.key,
-                                      style: const TextStyle(fontSize: 13),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: widget.isDarkMode
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
                                     ),
                                   ),
                                   Text(
                                     '$pct% (${e.value}분)',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[600],
+                                      color: widget.isDarkMode
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
                                     ),
                                   ),
                                 ],
@@ -5158,9 +5626,12 @@ class _LogScreenState extends State<LogScreen> {
                             'weight_change',
                             widget.language,
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: widget.isDarkMode
+                                ? Colors.white
+                                : Colors.black87,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -5194,11 +5665,21 @@ class _LogScreenState extends State<LogScreen> {
                                   children: [
                                     Text(
                                       '${AppLocalizations.getText('start', widget.language)}: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).first.averageWeight.toStringAsFixed(1)}kg',
-                                      style: const TextStyle(fontSize: 12),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: widget.isDarkMode
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
                                     ),
                                     Text(
                                       '${AppLocalizations.getText('recent', widget.language)}: ${_weightRecords.where((r) => r.date.year == _currentMonth.year && r.date.month == _currentMonth.month).last.averageWeight.toStringAsFixed(1)}kg',
-                                      style: const TextStyle(fontSize: 12),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: widget.isDarkMode
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -5248,9 +5729,12 @@ class _LogScreenState extends State<LogScreen> {
                                         ),
                                         Text(
                                           '${record.averageWeight.toStringAsFixed(1)}kg',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
+                                            color: widget.isDarkMode
+                                                ? Colors.white
+                                                : Colors.black87,
                                           ),
                                         ),
                                       ],
@@ -5272,6 +5756,115 @@ class _LogScreenState extends State<LogScreen> {
     );
   }
 
+  void _showAllRecordsDialog(List<WorkoutRecord> records) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: widget.isDarkMode
+              ? const Color(0xFF1E1E1E)
+              : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${_fmt(_selectedDate)} ${AppLocalizations.getText('records', widget.language)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: widget.isDarkMode
+                            ? Colors.white
+                            : Colors.black87,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: widget.isDarkMode
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: records.length,
+                    separatorBuilder: (context, index) => Divider(
+                      color: widget.isDarkMode
+                          ? Colors.grey[800]
+                          : Colors.grey[300],
+                    ),
+                    itemBuilder: (context, index) {
+                      final record = records[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  record.type,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: widget.isDarkMode
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${record.duration ~/ 60}분',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: widget.isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              _formatDuration(record.duration),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: widget.isDarkMode
+                                    ? Colors.grey[300]
+                                    : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _chip(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -5281,7 +5874,13 @@ class _LogScreenState extends State<LogScreen> {
             : const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 12)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          color: widget.isDarkMode ? Colors.white : Colors.black87,
+        ),
+      ),
     );
   }
 
@@ -5294,7 +5893,9 @@ class _LogScreenState extends State<LogScreen> {
           Container(
             height: h,
             decoration: BoxDecoration(
-              color: widget.isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
+              color: widget.isDarkMode
+                  ? const Color(0xFF4785EF)
+                  : Colors.black87,
               borderRadius: BorderRadius.circular(8),
             ),
           ),
@@ -5327,7 +5928,11 @@ class SettingScreen extends StatefulWidget {
   State<SettingScreen> createState() => _SettingScreenState();
 }
 
-class _SettingScreenState extends State<SettingScreen> {
+class _SettingScreenState extends State<SettingScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   String _userName = '';
   String _userEmail = 'user@example.com';
 
@@ -5361,6 +5966,7 @@ class _SettingScreenState extends State<SettingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Keep state alive when switching tabs
     return Scaffold(
       backgroundColor: widget.isDarkMode
           ? const Color(0xFF121212)
@@ -5756,8 +6362,16 @@ class _SettingScreenState extends State<SettingScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text('日本語'),
+                leading: Icon(
+                  Icons.language,
+                  color: widget.isDarkMode ? Colors.grey[400] : Colors.black87,
+                ),
+                title: Text(
+                  '日本語',
+                  style: TextStyle(
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                ),
                 onTap: () {
                   widget.onLanguageChanged('日本語');
                   _saveSettings();
@@ -5765,8 +6379,16 @@ class _SettingScreenState extends State<SettingScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text('한국어'),
+                leading: Icon(
+                  Icons.language,
+                  color: widget.isDarkMode ? Colors.grey[400] : Colors.black87,
+                ),
+                title: Text(
+                  '한국어',
+                  style: TextStyle(
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                ),
                 onTap: () {
                   widget.onLanguageChanged('한국어');
                   _saveSettings();
@@ -5774,8 +6396,16 @@ class _SettingScreenState extends State<SettingScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text('English'),
+                leading: Icon(
+                  Icons.language,
+                  color: widget.isDarkMode ? Colors.grey[400] : Colors.black87,
+                ),
+                title: Text(
+                  'English',
+                  style: TextStyle(
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                ),
                 onTap: () {
                   widget.onLanguageChanged('English');
                   _saveSettings();
@@ -7742,7 +8372,7 @@ class WeightGraphPainter extends CustomPainter {
 
     // 최대값
     textPainter.text = TextSpan(
-      text: '${maxWeight.toStringAsFixed(1)}',
+      text: maxWeight.toStringAsFixed(1),
       style: TextStyle(
         color: isDark ? Colors.grey[400] : Colors.grey[600],
         fontSize: 10,
@@ -7753,7 +8383,7 @@ class WeightGraphPainter extends CustomPainter {
 
     // 최소값
     textPainter.text = TextSpan(
-      text: '${minWeight.toStringAsFixed(1)}',
+      text: minWeight.toStringAsFixed(1),
       style: TextStyle(
         color: isDark ? Colors.grey[400] : Colors.grey[600],
         fontSize: 10,
@@ -7770,4 +8400,289 @@ class WeightGraphPainter extends CustomPainter {
   bool shouldRepaint(WeightGraphPainter oldDelegate) {
     return oldDelegate.records != records || oldDelegate.isDark != isDark;
   }
+}
+
+// 전체 루틴 페이지
+class AllRoutinesScreen extends StatefulWidget {
+  final bool isDarkMode;
+  final String language;
+  final List<Map<String, dynamic>> routines;
+  final List<String> allExercises;
+  final Function(Map<String, dynamic>) onRoutineCreated;
+  final Function(Map<String, dynamic>) onRoutineDeleted;
+  final Function(String)? onStartRoutine;
+
+  const AllRoutinesScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.language,
+    required this.routines,
+    required this.allExercises,
+    required this.onRoutineCreated,
+    required this.onRoutineDeleted,
+    this.onStartRoutine,
+  });
+
+  @override
+  State<AllRoutinesScreen> createState() => _AllRoutinesScreenState();
+}
+
+class _AllRoutinesScreenState extends State<AllRoutinesScreen> {
+  late List<Map<String, dynamic>> _routines;
+
+  @override
+  void initState() {
+    super.initState();
+    _routines = List.from(widget.routines);
+  }
+
+  void _showCreateRoutineDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return _CreateRoutineDialog(
+          isDarkMode: widget.isDarkMode,
+          language: widget.language,
+          allExercises: widget.allExercises,
+          favoriteExercises: const [], // 즐겨찾기는 여기서는 필요 없음
+          onSave: (routine) {
+            setState(() {
+              _routines.add(routine);
+            });
+            widget.onRoutineCreated(routine);
+          },
+        );
+      },
+    );
+  }
+
+  void _startRoutineFromRoutineTab(String routineName) {
+    if (widget.onStartRoutine != null) {
+      widget.onStartRoutine!(routineName);
+    }
+    // 홈으로 돌아가기
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  Widget _buildRoutineListCard(Map<String, dynamic> routine) {
+    final meta = _routineMetaOrDefault(routine);
+    final weeks = (meta['weeks'] as List<int>)
+        .map((w) => w.clamp(0, 5))
+        .toList();
+    final sessions = meta['sessions'] as int;
+    final minutes = meta['minutes'] as int;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: widget.isDarkMode ? Colors.white12 : Colors.black12,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    meta['title'] as String,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: widget.isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${meta['time']} · ${meta['level']}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: widget.isDarkMode
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  _startRoutineFromRoutineTab(meta['title'] as String);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.isDarkMode
+                      ? const Color(0xFF4785EF)
+                      : Colors.black87,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                child: Text(
+                  AppLocalizations.getText('start_workout', widget.language),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: weeks
+                    .map(
+                      (w) => Padding(
+                        padding: const EdgeInsets.only(right: 6.0),
+                        child: _WeekStripBar(
+                          intensity: w,
+                          isDarkMode: widget.isDarkMode,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              Text(
+                '$sessions회 · ${minutes ~/ 60}시간${minutes % 60}분',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: widget.isDarkMode
+                      ? Colors.grey[400]
+                      : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Map<String, dynamic> _routineMetaOrDefault(Map<String, dynamic> routine) {
+    final title =
+        (routine['title'] ??
+                routine['name'] ??
+                AppLocalizations.getText('routine', widget.language))
+            .toString();
+    final time =
+        (routine['time'] ??
+                '30${AppLocalizations.getText('minutes', widget.language)}')
+            .toString();
+    final level =
+        (routine['level'] ??
+                AppLocalizations.getText('beginner', widget.language))
+            .toString();
+    final usage =
+        (routine['usage'] as Map<String, dynamic>?) ??
+        {
+          'sessions': 0,
+          'minutes': 0,
+          'weeks': [0, 0, 0, 0],
+        };
+    final sessions = (usage['sessions'] ?? 0) as int;
+    final minutes = (usage['minutes'] ?? 0) as int;
+    final weeks = (usage['weeks'] as List?)?.cast<int>() ?? [0, 0, 0, 0];
+    return {
+      'title': title,
+      'time': time,
+      'level': level,
+      'sessions': sessions,
+      'minutes': minutes,
+      'weeks': weeks,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: widget.isDarkMode
+          ? const Color(0xFF121212)
+          : const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: widget.isDarkMode
+            ? const Color(0xFF1E1E1E)
+            : Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: widget.isDarkMode ? Colors.white : Colors.black87,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          AppLocalizations.getText('created_routines', widget.language),
+          style: TextStyle(
+            color: widget.isDarkMode ? Colors.white : Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _routines
+                .map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: _buildRoutineListCard(r),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateRoutineDialog,
+        backgroundColor: widget.isDarkMode
+            ? const Color(0xFF4785EF)
+            : Colors.black87,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+}
+
+// WeekStripBar 위젯 (루틴 사용량 표시)
+Widget _WeekStripBar({required int intensity, required bool isDarkMode}) {
+  final pct = (intensity.clamp(0, 5) / 5.0).toDouble();
+  return Container(
+    width: 40,
+    height: 10,
+    decoration: BoxDecoration(
+      color: isDarkMode ? const Color(0xFF2A2A2A) : Colors.grey[300],
+      borderRadius: BorderRadius.circular(4),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: pct == 0 ? 0.02 : pct,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? const Color(0xFF4785EF) : Colors.black87,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+    ),
+  );
 }

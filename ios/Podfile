@@ -27,7 +27,8 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  # Use static frameworks so Firebase pods expose Swift modules correctly.
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -49,7 +50,7 @@ post_install do |installer|
       c.build_settings['EXCLUDED_ARCHS[sdk=iphoneos*]'] = 'armv7'
       
       # Fix deployment target
-      c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
     end
   end
 end
