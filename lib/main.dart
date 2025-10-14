@@ -3210,7 +3210,7 @@ class _HomeScreenState extends State<HomeScreen>
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -3247,7 +3247,7 @@ class _HomeScreenState extends State<HomeScreen>
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -3275,47 +3275,18 @@ class _HomeScreenState extends State<HomeScreen>
                     : 60,
               ),
 
-              // 루틴명 박스 (운동 중일 때만 표시)
+              // 루틴명 텍스트 (운동 중일 때만 표시)
               if (_isWorkoutMode && _selectedWorkoutType.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4785EF), Color(0xFF84CACD)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    _selectedWorkoutType,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: widget.isDarkMode ? Colors.white : Colors.black87,
                     ),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF4785EF).withOpacity(0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.fitness_center,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _selectedWorkoutType,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                    textAlign: TextAlign.center,
                   ),
                 ),
 
@@ -3361,10 +3332,9 @@ class _HomeScreenState extends State<HomeScreen>
                                       'next_workout',
                                       widget.language,
                                     )
-                                  : AppLocalizations.getText(
-                                      'last_workout',
-                                      widget.language,
-                                    )),
+                                  : (widget.language == '한국어'
+                                        ? '마지막 운동으로부터'
+                                        : '最後の運動から')),
                         style: TextStyle(
                           fontSize: 16,
                           color: widget.isDarkMode
@@ -3393,7 +3363,7 @@ class _HomeScreenState extends State<HomeScreen>
                             ? (_isPaused ? '一時停止中...' : '運動中...')
                             : (_nextWorkoutDate != null
                                   ? _getNextWorkoutDateText()
-                                  : '카운트업 중'),
+                                  : (widget.language == '한국어' ? '경과중' : '経過中')),
                         style: TextStyle(
                           fontSize: 14,
                           color: widget.isDarkMode
@@ -5087,7 +5057,8 @@ class _LogScreenState extends State<LogScreen>
   String _monthKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}';
   List<WorkoutRecord> _logsOn(DateTime d) {
-    return _workoutRecords.where((r) => _fmt(r.date) == _fmt(d)).toList();
+    return _workoutRecords.where((r) => _fmt(r.date) == _fmt(d)).toList()
+      ..sort((a, b) => b.endTime.compareTo(a.endTime)); // 최근 기록이 위로
   }
 
   List<WorkoutRecord> get _logsThisMonth {
@@ -5467,6 +5438,16 @@ class _LogScreenState extends State<LogScreen>
                                               color: widget.isDarkMode
                                                   ? Colors.grey[400]
                                                   : Colors.grey[600],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${l.startTime.hour.toString().padLeft(2, '0')}:${l.startTime.minute.toString().padLeft(2, '0')} - ${l.endTime.hour.toString().padLeft(2, '0')}:${l.endTime.minute.toString().padLeft(2, '0')}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: widget.isDarkMode
+                                                  ? Colors.grey[500]
+                                                  : Colors.grey[500],
                                             ),
                                           ),
                                         ],
