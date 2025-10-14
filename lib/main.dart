@@ -758,6 +758,12 @@ class WeightRecord {
     return weights.reduce((a, b) => a + b) / weights.length;
   }
 
+  // 최근(마지막) 몸무게 반환
+  double get latestWeight {
+    if (weights.isEmpty) return 0.0;
+    return weights.last;
+  }
+
   Map<String, dynamic> toJson() => {
     'date': date.toIso8601String(),
     'weights': weights,
@@ -835,6 +841,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _isDarkMode = false;
   String _selectedLanguage = '日本語';
   String? _startRoutineName; // 시작할 루틴 이름
+  final GlobalKey<_LogScreenState> _logScreenKey = GlobalKey<_LogScreenState>();
 
   // 운동 상태 관리 - ValueNotifier로 변경하여 성능 최적화
   final ValueNotifier<bool> _isWorkoutActive = ValueNotifier(false);
@@ -900,6 +907,10 @@ class _MainScreenState extends State<MainScreen> {
       onNavigateToTab: (index) => setState(() => _currentIndex = index),
       startWithRoutine: _startRoutineName,
       onWorkoutStatusChanged: _updateWorkoutStatus,
+      onWeightRecorded: () {
+        // 체중 기록 후 로그탭 데이터 새로고침
+        _logScreenKey.currentState?.refreshData();
+      },
     ),
     RoutineScreen(
       isDarkMode: _isDarkMode,
@@ -920,7 +931,11 @@ class _MainScreenState extends State<MainScreen> {
         });
       },
     ),
-    LogScreen(isDarkMode: _isDarkMode, language: _selectedLanguage),
+    LogScreen(
+      key: _logScreenKey,
+      isDarkMode: _isDarkMode,
+      language: _selectedLanguage,
+    ),
     SettingScreen(
       isDarkMode: _isDarkMode,
       onDarkModeChanged: _updateDarkMode,
@@ -934,7 +949,7 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: _isDarkMode
           ? const Color(0xFF121212)
-          : const Color(0xFFF8F9FA),
+          : const Color(0xFFFAFAFA),
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1154,6 +1169,7 @@ class HomeScreen extends StatefulWidget {
     required int seconds,
   })?
   onWorkoutStatusChanged;
+  final VoidCallback? onWeightRecorded; // 체중 기록 후 콜백
 
   const HomeScreen({
     super.key,
@@ -1162,6 +1178,7 @@ class HomeScreen extends StatefulWidget {
     this.onNavigateToTab,
     this.startWithRoutine,
     this.onWorkoutStatusChanged,
+    this.onWeightRecorded,
   });
 
   @override
@@ -1200,6 +1217,8 @@ class _HomeScreenState extends State<HomeScreen>
   int _workoutMinutes = 0;
   int _workoutSeconds = 0;
   DateTime? _workoutStartTime;
+  int _totalPausedSeconds = 0; // 총 일시정지 시간
+  DateTime? _lastWorkoutEndTime; // 마지막 운동 종료 시간
 
   // 애니메이션 컨트롤러 제거됨
 
@@ -1246,6 +1265,7 @@ class _HomeScreenState extends State<HomeScreen>
     final isPaused = prefs.getBool('workout_paused') ?? false;
     final pausedAt = prefs.getString('workout_paused_at');
     final totalPausedSeconds = prefs.getInt('total_paused_seconds') ?? 0;
+    final lastWorkoutEndTime = prefs.getString('last_workout_end_time');
 
     if (workoutStartTime != null) {
       final startTime = DateTime.parse(workoutStartTime);
@@ -1256,6 +1276,7 @@ class _HomeScreenState extends State<HomeScreen>
         _isPaused = isPaused;
         _selectedWorkoutType = workoutType ?? '';
         _workoutStartTime = startTime;
+        _totalPausedSeconds = totalPausedSeconds;
 
         // 경과 시간 계산
         int elapsedSeconds =
@@ -1283,6 +1304,10 @@ class _HomeScreenState extends State<HomeScreen>
       print(
         '✅ 운동 상태 복구됨: ${_workoutHours}h ${_workoutMinutes}m ${_workoutSeconds}s',
       );
+    } else if (lastWorkoutEndTime != null) {
+      // 운동 중이 아니지만 마지막 운동 종료 시간이 있으면 복구
+      _lastWorkoutEndTime = DateTime.parse(lastWorkoutEndTime);
+      print('✅ 운동 종료 시간 복구됨: $_lastWorkoutEndTime');
     }
   }
 
@@ -1464,25 +1489,14 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   String _getWorkoutPaceText() {
-    if (_workoutDays.isEmpty) {
-      // 운동 기록이 없을 때
+    if (_workoutDays.isEmpty || _workoutDays.length < 2) {
+      // 운동 기록이 없거나 1회만 있을 때 0일 표시
       if (widget.language == '日本語') {
         return '0日';
       } else if (widget.language == '한국어') {
         return '0일';
       } else {
         return '0 days';
-      }
-    }
-
-    if (_workoutDays.length == 1) {
-      // 운동을 한 번만 했을 때
-      if (widget.language == '日本語') {
-        return '集計中...';
-      } else if (widget.language == '한국어') {
-        return '집계중...';
-      } else {
-        return 'Calculating...';
       }
     }
 
@@ -1619,12 +1633,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ----- Hybrid idle timer helpers -----
-  WorkoutRecord? _lastWorkout() {
-    if (_workoutRecords.isEmpty) return null;
-    final sorted = [..._workoutRecords]
-      ..sort((a, b) => b.endTime.compareTo(a.endTime));
-    return sorted.first;
-  }
 
   String _formatHms(int totalSeconds) {
     final h = totalSeconds ~/ 3600;
@@ -1651,27 +1659,32 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
     // Otherwise, count up since last workout end time
-    final last = _lastWorkout();
-    if (last == null) return '00:00:00';
-    final elapsed = DateTime.now().difference(last.endTime).inSeconds;
-    return _formatHms(elapsed);
+    if (_lastWorkoutEndTime != null) {
+      final elapsed = DateTime.now().difference(_lastWorkoutEndTime!).inSeconds;
+      return _formatHms(elapsed);
+    }
+    return '00:00:00';
   }
 
   void _startWorkoutTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isPaused) {
-        setState(() {
-          _workoutSeconds++;
-          if (_workoutSeconds >= 60) {
-            _workoutSeconds = 0;
-            _workoutMinutes++;
-            if (_workoutMinutes >= 60) {
-              _workoutMinutes = 0;
-              _workoutHours++;
-            }
-          }
-        });
-        _notifyWorkoutStatus();
+      if (!_isPaused && _workoutStartTime != null) {
+        // 시작 시간을 기준으로 현재 시간과의 차이를 계산
+        final now = DateTime.now();
+        final elapsed = now.difference(_workoutStartTime!);
+
+        // 일시정지 시간을 제외한 실제 운동 시간 계산
+        final totalPausedSeconds = _totalPausedSeconds;
+        final actualElapsedSeconds = elapsed.inSeconds - totalPausedSeconds;
+
+        if (actualElapsedSeconds >= 0) {
+          setState(() {
+            _workoutHours = actualElapsedSeconds ~/ 3600;
+            _workoutMinutes = (actualElapsedSeconds % 3600) ~/ 60;
+            _workoutSeconds = actualElapsedSeconds % 60;
+          });
+          _notifyWorkoutStatus();
+        }
       }
     });
   }
@@ -1702,6 +1715,7 @@ class _HomeScreenState extends State<HomeScreen>
       _workoutMinutes = 0;
       _workoutSeconds = 0;
       _workoutStartTime = startTime;
+      _totalPausedSeconds = 0; // 일시정지 시간 초기화
       _startWorkoutTimer();
 
       // 그라데이션 애니메이션 시작
@@ -1745,10 +1759,9 @@ class _HomeScreenState extends State<HomeScreen>
         if (pausedAt != null) {
           final pausedTime = DateTime.parse(pausedAt);
           final pausedDuration = now.difference(pausedTime).inSeconds;
-          final totalPaused =
-              (prefs.getInt('total_paused_seconds') ?? 0) + pausedDuration;
+          _totalPausedSeconds += pausedDuration;
 
-          prefs.setInt('total_paused_seconds', totalPaused);
+          prefs.setInt('total_paused_seconds', _totalPausedSeconds);
           prefs.remove('workout_paused_at');
         }
         prefs.setBool('workout_paused', false);
@@ -1808,6 +1821,13 @@ class _HomeScreenState extends State<HomeScreen>
 
       // 운동 시작 시간 초기화
       _workoutStartTime = null;
+
+      // 운동 종료 시간 저장
+      _lastWorkoutEndTime = DateTime.now();
+      prefs.setString(
+        'last_workout_end_time',
+        _lastWorkoutEndTime!.toIso8601String(),
+      );
 
       // 대기 모드로 돌아가기
       _calculateNextWorkoutDate();
@@ -2290,16 +2310,14 @@ class _HomeScreenState extends State<HomeScreen>
   void _showWeightInputDialog() {
     final TextEditingController weightController = TextEditingController();
 
-    // 오늘의 기록이 있으면 평균값을 기본값으로 표시
-    final today = DateTime.now();
-    final todayRecord = _weightRecords.where((record) {
-      return record.date.year == today.year &&
-          record.date.month == today.month &&
-          record.date.day == today.day;
-    }).firstOrNull;
-
-    if (todayRecord != null) {
-      weightController.text = todayRecord.averageWeight.toStringAsFixed(1);
+    // 최근 입력한 체중을 기본값으로 표시
+    double? recentWeight;
+    if (_weightRecords.isNotEmpty) {
+      // 가장 최근 기록의 마지막 입력값 사용
+      final latestRecord = _weightRecords.last;
+      if (latestRecord.weights.isNotEmpty) {
+        recentWeight = latestRecord.weights.last;
+      }
     }
 
     showDialog(
@@ -2309,9 +2327,11 @@ class _HomeScreenState extends State<HomeScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: Text(
-            AppLocalizations.getText('today_weight', widget.language),
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          title: Center(
+            child: Text(
+              AppLocalizations.getText('today_weight', widget.language),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2321,15 +2341,19 @@ class _HomeScreenState extends State<HomeScreen>
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
+                style: const TextStyle(color: Colors.black), // 입력시 검은색
                 decoration: InputDecoration(
                   labelText: AppLocalizations.getText(
                     'weight_kg',
                     widget.language,
                   ),
-                  hintText: AppLocalizations.getText(
-                    'weight_placeholder',
-                    widget.language,
-                  ),
+                  hintText: recentWeight != null
+                      ? '예: ${recentWeight.toStringAsFixed(1)}'
+                      : AppLocalizations.getText(
+                          'weight_placeholder',
+                          widget.language,
+                        ),
+                  hintStyle: const TextStyle(color: Colors.grey), // 연한 회색
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -2369,11 +2393,8 @@ class _HomeScreenState extends State<HomeScreen>
                   Navigator.of(context).pop();
 
                   if (existingRecord != null) {
-                    // 기존 기록이 있으면 weights 배열에 추가
+                    // 기존 기록이 있으면 weights 배열에 추가 (최근 값으로 저장)
                     final updatedWeights = [...existingRecord.weights, weight];
-                    final avgWeight =
-                        updatedWeights.reduce((a, b) => a + b) /
-                        updatedWeights.length;
 
                     // 기존 기록 제거하고 업데이트된 기록 추가
                     setState(() {
@@ -2390,11 +2411,14 @@ class _HomeScreenState extends State<HomeScreen>
 
                     _saveData();
 
-                    // 성공 스낵바 (평균값 표시)
+                    // 로그탭 데이터 새로고침 콜백 호출
+                    widget.onWeightRecorded?.call();
+
+                    // 성공 스낵바 (최근 값 표시)
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          '${AppLocalizations.getText('weight_recorded', widget.language)}: ${weight.toStringAsFixed(1)}kg\n${AppLocalizations.getText('average', widget.language)}: ${avgWeight.toStringAsFixed(1)}kg (${updatedWeights.length}${AppLocalizations.getText('times', widget.language)})',
+                          '${AppLocalizations.getText('weight_recorded', widget.language)}: ${weight.toStringAsFixed(1)}kg (${updatedWeights.length}${AppLocalizations.getText('times', widget.language)})',
                         ),
                         duration: const Duration(seconds: 2),
                         backgroundColor: const Color(0xFF4CAF50),
@@ -2410,6 +2434,9 @@ class _HomeScreenState extends State<HomeScreen>
                     });
 
                     _saveData();
+
+                    // 로그탭 데이터 새로고침 콜백 호출
+                    widget.onWeightRecorded?.call();
 
                     // 성공 스낵바
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -2964,70 +2991,44 @@ class _HomeScreenState extends State<HomeScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'お疲れ様でした🎉',
+                  widget.language == '한국어' ? '수고했어요!' : 'お疲れ様でした!',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  widget.language == '한국어' ? '오늘의 운동시간' : '今日の運動時間',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: widget.isDarkMode
+                        ? Colors.grey[400]
+                        : Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.language == '한국어'
+                      ? '${minutes}분 ${seconds}초'
+                      : '${minutes}分${seconds}秒',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: widget.isDarkMode ? Colors.white : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  '今日の運動時間',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: widget.isDarkMode
-                        ? Colors.grey[400]
-                        : Colors.black54,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '$minutes分$seconds秒',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: widget.isDarkMode ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
 
-                // 선택된 운동/루틴 표시
-                if (_selectedWorkoutType.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4785EF).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF4785EF),
-                        width: 1,
-                      ),
-                    ),
-                    child: Text(
-                      '선택된 운동: $_selectedWorkoutType',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF4785EF),
-                      ),
-                    ),
-                  ),
-
-                if (_selectedWorkoutType.isNotEmpty) const SizedBox(height: 15),
-
-                // 운동 선택 버튼
+                // 운동내용선택 버튼
                 Container(
                   width: double.infinity,
                   height: 50,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4785EF), Color(0xFF84CACD)],
-                    ),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFF3F3F3)),
                   ),
                   child: ElevatedButton(
                     onPressed: () {
@@ -3040,10 +3041,44 @@ class _HomeScreenState extends State<HomeScreen>
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      '운동 선택',
+                    child: Text(
+                      widget.language == '한국어' ? '운동내용선택' : '運動内容選択',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 기록보기 버튼
+                Container(
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _endWorkout(); // 운동 종료 처리
+                      widget.onNavigateToTab?.call(2); // 로그탭으로 이동
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      widget.language == '한국어' ? '기록보기' : '記録を見る',
+                      style: TextStyle(
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -3051,85 +3086,16 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
-                // 다음 운동일 설정과 체중 입력을 한 줄에 배치
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 45,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF87CEEB), Color(0xFF4FC3F7)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            // TODO: 다음 운동일 설정 화면으로 이동
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            '다음 운동일 설정',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Container(
-                        height: 45,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            // TODO: 체중 입력 화면으로 이동
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            '체중 입력',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
+                // 닫기 버튼
                 Container(
                   width: double.infinity,
-                  height: 45,
+                  height: 50,
                   decoration: BoxDecoration(
-                    color: Colors.grey[600],
-                    borderRadius: BorderRadius.circular(22),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFF3F3F3)),
                   ),
                   child: ElevatedButton(
                     onPressed: () {
@@ -3143,12 +3109,12 @@ class _HomeScreenState extends State<HomeScreen>
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      '終了',
+                    child: Text(
+                      widget.language == '한국어' ? '닫기' : '閉じる',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        color: Colors.black87,
                       ),
                     ),
                   ),
@@ -3167,7 +3133,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       backgroundColor: widget.isDarkMode
           ? const Color(0xFF121212)
-          : const Color(0xFFF8F9FA),
+          : const Color(0xFFFAFAFA),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -3222,29 +3188,29 @@ class _HomeScreenState extends State<HomeScreen>
 
               const SizedBox(height: 30),
 
-              // Metrics card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    // Left section - Exercise time
-                    Expanded(
+              // Metrics cards - separated
+              Row(
+                children: [
+                  // Left section - Monthly exercise time
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF3F3F3)),
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            AppLocalizations.getText(
-                              'workout_time',
-                              widget.language,
-                            ),
+                            widget.language == '한국어'
+                                ? '${DateTime.now().month}월 운동시간'
+                                : '今月の運動時間',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
-                              fontWeight: FontWeight.w400,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -3262,22 +3228,26 @@ class _HomeScreenState extends State<HomeScreen>
                         ],
                       ),
                     ),
-                    // Divider
-                    Container(height: 40, width: 1, color: Colors.grey[300]),
-                    // Right section - Exercise pace
-                    Expanded(
+                  ),
+                  const SizedBox(width: 12),
+                  // Right section - Exercise cycle
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF3F3F3)),
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            AppLocalizations.getText(
-                              'workout_pace',
-                              widget.language,
-                            ),
+                            widget.language == '한국어' ? '운동주기' : '運動ペース',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
-                              fontWeight: FontWeight.w400,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -3286,7 +3256,7 @@ class _HomeScreenState extends State<HomeScreen>
                             _getWorkoutPaceText(),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[800],
+                              color: _getWorkoutPaceColor(),
                               fontWeight: FontWeight.w400,
                               fontFamily: 'Hiragino Sans',
                             ),
@@ -3295,8 +3265,8 @@ class _HomeScreenState extends State<HomeScreen>
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
 
               SizedBox(
@@ -3445,7 +3415,7 @@ class _HomeScreenState extends State<HomeScreen>
                   width: MediaQuery.of(context).size.width * 0.7,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF87CEEB), // 심플한 파란색
+                    color: const Color(0xFF4D4D4D), // 요청된 회색
                     borderRadius: BorderRadius.circular(12), // 둥근 모서리
                   ),
                   child: ElevatedButton(
@@ -3470,6 +3440,10 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ),
+
+              // 최근 운동 메시지
+              if (!_isWorkoutMode) _buildRecentWorkoutMessage(),
+
               if (_isWorkoutMode)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -3548,6 +3522,96 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
     );
+  }
+
+  // 최근 운동 메시지 위젯
+  Widget _buildRecentWorkoutMessage() {
+    final lastWorkoutDate = _getLastWorkoutDate();
+    if (lastWorkoutDate == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastWorkoutDay = DateTime(
+      lastWorkoutDate.year,
+      lastWorkoutDate.month,
+      lastWorkoutDate.day,
+    );
+
+    // 오늘 운동했으면 메시지 숨김
+    if (lastWorkoutDay.isAtSameMomentAs(today)) {
+      return const SizedBox.shrink();
+    }
+
+    final daysDifference = today.difference(lastWorkoutDay).inDays;
+
+    // 1일 전부터 표기
+    if (daysDifference < 1) return const SizedBox.shrink();
+
+    String message;
+    if (widget.language == '한국어') {
+      message = '최근 운동 ${daysDifference}일 전';
+    } else {
+      message = '最近の運動 ${daysDifference}日前';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Text(
+        message,
+        style: TextStyle(
+          fontSize: 12,
+          color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  // 마지막 운동일 계산
+  DateTime? _getLastWorkoutDate() {
+    if (_workoutRecords.isEmpty) return null;
+
+    // 운동 기록을 날짜순으로 정렬하여 가장 최근 것 반환
+    final sortedRecords = List<WorkoutRecord>.from(_workoutRecords);
+    sortedRecords.sort((a, b) => b.date.compareTo(a.date));
+
+    return sortedRecords.first.date;
+  }
+
+  // 운동주기 색상 계산
+  Color _getWorkoutPaceColor() {
+    final paceText = _getWorkoutPaceText();
+
+    // 데이터가 부족하거나 0일인 경우 기본 색상
+    if (paceText == '0일' || paceText == '0日') {
+      return Colors.grey[800]!;
+    }
+
+    // 운동주기 변화 계산 (간단한 로직)
+    if (_workoutRecords.length < 3) {
+      return Colors.grey[800]!; // 데이터 부족시 기본 색상
+    }
+
+    // 최근 3개 운동의 간격을 비교
+    final sortedRecords = List<WorkoutRecord>.from(_workoutRecords);
+    sortedRecords.sort((a, b) => b.date.compareTo(a.date));
+
+    if (sortedRecords.length >= 3) {
+      final recent1 = sortedRecords[0].date;
+      final recent2 = sortedRecords[1].date;
+      final recent3 = sortedRecords[2].date;
+
+      final gap1 = recent1.difference(recent2).inDays;
+      final gap2 = recent2.difference(recent3).inDays;
+
+      if (gap1 > gap2) {
+        return Colors.red; // 주기가 길어짐 (빨간색)
+      } else if (gap1 < gap2) {
+        return Colors.blue; // 주기가 짧아짐 (파란색)
+      }
+    }
+
+    return Colors.grey[800]!; // 기본 색상
   }
 }
 
@@ -4944,11 +5008,13 @@ class _RoutineScreenState extends State<RoutineScreen>
 class LogScreen extends StatefulWidget {
   final bool isDarkMode;
   final String language;
+  final VoidCallback? onRefresh;
 
   const LogScreen({
     super.key,
     required this.isDarkMode,
     required this.language,
+    this.onRefresh,
   });
 
   @override
@@ -4982,6 +5048,12 @@ class _LogScreenState extends State<LogScreen>
     // 화면이 다시 활성화될 때마다 데이터 새로고침
     _loadWorkoutRecords();
     _loadWeightRecords(); // 몸무게 기록도 새로고침
+  }
+
+  // 외부에서 호출할 수 있는 데이터 새로고침 메서드
+  void refreshData() {
+    _loadWorkoutRecords();
+    _loadWeightRecords();
   }
 
   Future<void> _loadWorkoutRecords() async {
@@ -5702,20 +5774,15 @@ class _LogScreenState extends State<LogScreen>
                               // 간단한 선 그래프
                               SizedBox(
                                 height: 100,
-                                child: CustomPaint(
-                                  size: Size(double.infinity, 100),
-                                  painter: WeightGraphPainter(
-                                    records: _weightRecords
-                                        .where(
-                                          (r) =>
-                                              r.date.year ==
-                                                  _currentMonth.year &&
-                                              r.date.month ==
-                                                  _currentMonth.month,
-                                        )
-                                        .toList(),
-                                    isDark: widget.isDarkMode,
-                                  ),
+                                child: WeightGraphWidget(
+                                  records: _weightRecords
+                                      .where(
+                                        (r) =>
+                                            r.date.year == _currentMonth.year &&
+                                            r.date.month == _currentMonth.month,
+                                      )
+                                      .toList(),
+                                  isDark: widget.isDarkMode,
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -8280,12 +8347,152 @@ class AuthWrapper extends StatelessWidget {
   }
 }
 
+// 몸무게 그래프 위젯 (툴팁 기능 포함)
+class WeightGraphWidget extends StatefulWidget {
+  final List<WeightRecord> records;
+  final bool isDark;
+
+  const WeightGraphWidget({
+    super.key,
+    required this.records,
+    required this.isDark,
+  });
+
+  @override
+  State<WeightGraphWidget> createState() => _WeightGraphWidgetState();
+}
+
+class _WeightGraphWidgetState extends State<WeightGraphWidget> {
+  int? _selectedIndex;
+  Offset? _tooltipPosition;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (details) {
+        if (widget.records.isEmpty) return;
+
+        final RenderBox box = context.findRenderObject() as RenderBox;
+        final localPosition = box.globalToLocal(details.globalPosition);
+
+        // 그래프 영역 설정
+        const leftPadding = 40.0;
+        const rightPadding = 10.0;
+
+        final graphWidth = box.size.width - leftPadding - rightPadding;
+
+        // 터치한 위치에서 가장 가까운 점 찾기
+        double minDistance = double.infinity;
+        int closestIndex = -1;
+
+        for (int i = 0; i < widget.records.length; i++) {
+          final x =
+              leftPadding +
+              (graphWidth /
+                      (widget.records.length - 1 > 0
+                          ? widget.records.length - 1
+                          : 1)) *
+                  i;
+          final distance = (localPosition.dx - x).abs();
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestIndex = i;
+          }
+        }
+
+        if (closestIndex != -1 && minDistance < 30) {
+          // 30픽셀 이내
+          setState(() {
+            _selectedIndex = closestIndex;
+            _tooltipPosition = localPosition;
+          });
+        } else {
+          setState(() {
+            _selectedIndex = null;
+            _tooltipPosition = null;
+          });
+        }
+      },
+      onTap: () {
+        setState(() {
+          _selectedIndex = null;
+          _tooltipPosition = null;
+        });
+      },
+      child: Stack(
+        children: [
+          CustomPaint(
+            size: Size(double.infinity, 100),
+            painter: WeightGraphPainter(
+              records: widget.records,
+              isDark: widget.isDark,
+              selectedIndex: _selectedIndex,
+            ),
+          ),
+          if (_selectedIndex != null && _tooltipPosition != null)
+            Positioned(
+              left: _tooltipPosition!.dx - 40,
+              top: _tooltipPosition!.dy - 50,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.grey[800] : Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: widget.isDark
+                        ? Colors.grey[600]!
+                        : Colors.grey[300]!,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${widget.records[_selectedIndex!].date.month.toString().padLeft(2, '0')}/${widget.records[_selectedIndex!].date.day.toString().padLeft(2, '0')}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: widget.isDark
+                            ? Colors.grey[300]
+                            : Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      'weight : ${widget.records[_selectedIndex!].latestWeight.toStringAsFixed(1)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: widget.isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 // 몸무게 그래프 Painter
 class WeightGraphPainter extends CustomPainter {
   final List<WeightRecord> records;
   final bool isDark;
+  final int? selectedIndex;
 
-  WeightGraphPainter({required this.records, required this.isDark});
+  WeightGraphPainter({
+    required this.records,
+    required this.isDark,
+    this.selectedIndex,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -8300,8 +8507,8 @@ class WeightGraphPainter extends CustomPainter {
     final graphWidth = size.width - leftPadding - rightPadding;
     final graphHeight = size.height - topPadding - bottomPadding;
 
-    // 최소/최대 몸무게 찾기 (평균값 사용)
-    final weights = records.map((r) => r.averageWeight).toList();
+    // 최소/최대 몸무게 찾기 (최근값 사용)
+    final weights = records.map((r) => r.latestWeight).toList();
     final minWeight = weights.reduce((a, b) => a < b ? a : b);
     final maxWeight = weights.reduce((a, b) => a > b ? a : b);
     final weightRange = maxWeight - minWeight;
@@ -8358,7 +8565,7 @@ class WeightGraphPainter extends CustomPainter {
       final x =
           leftPadding +
           (graphWidth / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
-      final normalizedY = (records[i].averageWeight - minY) / yRange;
+      final normalizedY = (records[i].latestWeight - minY) / yRange;
       final y = topPadding + graphHeight - (normalizedY * graphHeight);
       points.add(Offset(x, y));
 
@@ -8373,9 +8580,18 @@ class WeightGraphPainter extends CustomPainter {
     canvas.drawPath(path, linePaint);
 
     // 점 그리기
-    for (final point in points) {
-      canvas.drawCircle(point, 5, dotPaint);
-      canvas.drawCircle(point, 4, Paint()..color = Colors.white);
+    for (int i = 0; i < points.length; i++) {
+      final point = points[i];
+      final isSelected = selectedIndex == i;
+
+      if (isSelected) {
+        // 선택된 점은 더 크고 진한 색으로
+        canvas.drawCircle(point, 7, Paint()..color = const Color(0xFF4785EF));
+        canvas.drawCircle(point, 5, Paint()..color = Colors.white);
+      } else {
+        canvas.drawCircle(point, 5, dotPaint);
+        canvas.drawCircle(point, 4, Paint()..color = Colors.white);
+      }
     }
 
     // Y축 라벨 그리기 (최소, 최대값)
@@ -8408,11 +8624,36 @@ class WeightGraphPainter extends CustomPainter {
       canvas,
       Offset(0, topPadding + graphHeight - textPainter.height / 2),
     );
+
+    // X축 날짜 라벨 그리기
+    for (int i = 0; i < records.length; i++) {
+      final x =
+          leftPadding +
+          (graphWidth / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
+      final date = records[i].date;
+      final dateText =
+          '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+
+      textPainter.text = TextSpan(
+        text: dateText,
+        style: TextStyle(
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
+          fontSize: 10,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(x - textPainter.width / 2, topPadding + graphHeight + 5),
+      );
+    }
   }
 
   @override
   bool shouldRepaint(WeightGraphPainter oldDelegate) {
-    return oldDelegate.records != records || oldDelegate.isDark != isDark;
+    return oldDelegate.records != records ||
+        oldDelegate.isDark != isDark ||
+        oldDelegate.selectedIndex != selectedIndex;
   }
 }
 
