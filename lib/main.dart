@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
@@ -261,9 +264,9 @@ class AppLocalizations {
       'log': '로그',
       'setting': '설정',
       'start_workout': '시작',
-      'stop_workout': '운동 중지',
+      'stop_workout': '운동 종료',
       'pause_workout': '일시정지',
-      'resume_workout': '재개',
+      'resume_workout': '다시시작',
       'workout_time': '운동 시간',
       'next_workout': '다음 운동일까지',
       'workout_in_progress': '운동 중...',
@@ -791,6 +794,11 @@ class WeightRecord {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Locale 초기화
+  await initializeDateFormatting('ko_KR', null);
+  await initializeDateFormatting('ja_JP', null);
+  await initializeDateFormatting('en_US', null);
+
   // Firebase 초기화
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
@@ -980,7 +988,10 @@ class _MainScreenState extends State<MainScreen> {
             ),
             child: BottomNavigationBar(
               currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
+              onTap: (index) async {
+                HapticFeedback.selectionClick();
+                setState(() => _currentIndex = index);
+              },
               type: BottomNavigationBarType.fixed,
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -1216,8 +1227,10 @@ class _HomeScreenState extends State<HomeScreen>
   int _workoutHours = 0;
   int _workoutMinutes = 0;
   int _workoutSeconds = 0;
+  int _workoutCentiseconds = 0; // 1/100초 표시용
   DateTime? _workoutStartTime;
-  int _totalPausedSeconds = 0; // 총 일시정지 시간
+  int _totalPausedSeconds = 0; // 총 일시정지 시간(초)
+  int _totalPausedMs = 0; // 총 일시정지 시간(밀리초)
   DateTime? _lastWorkoutEndTime; // 마지막 운동 종료 시간
 
   // 애니메이션 컨트롤러 제거됨
@@ -1292,6 +1305,7 @@ class _HomeScreenState extends State<HomeScreen>
         _workoutHours = elapsedSeconds ~/ 3600;
         _workoutMinutes = (elapsedSeconds % 3600) ~/ 60;
         _workoutSeconds = elapsedSeconds % 60;
+        _workoutCentiseconds = 0;
 
         // 타이머 재시작
         if (!isPaused) {
@@ -1524,10 +1538,158 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  Widget _buildWorkoutTimer() {
+    final totalMs =
+        (_workoutHours * 3600 + _workoutMinutes * 60 + _workoutSeconds) * 1000 +
+        (_workoutCentiseconds * 10);
+    final totalMinutes = totalMs ~/ 60000;
+    final mm = totalMinutes.toString().padLeft(3, '0');
+    final ss = ((totalMs % 60000) ~/ 1000).toString().padLeft(2, '0');
+    final cc = ((totalMs % 1000) ~/ 10).toString().padLeft(2, '0');
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // 분: 3자리 대응, 100 미만일 때 백의 자리는 숨김
+        _buildFixedDigits(mm, 3, hideFirstIfZero: totalMinutes < 100),
+        _buildColon(),
+        _buildFixedDigits(ss, 2),
+        _buildColon(),
+        _buildFixedDigits(cc, 2),
+      ],
+    );
+  }
+
+  // 각 세그먼트를 자리수 단위로 렌더링하여 미세 이동 제거
+  Widget _buildFixedDigits(
+    String text,
+    int maxDigits, {
+    bool hideFirstIfZero = false,
+  }) {
+    final padded = text.padLeft(maxDigits, '0');
+    const double digitWidth = 22; // 자리수 간격(좁게)
+
+    // 백의 자리 0을 숨겨야 하는 경우, 세그먼트 자체 폭을 한 자리 줄여 전체 그룹이 좌측으로 재정렬되도록 함
+    if (hideFirstIfZero && padded[0] == '0') {
+      return SizedBox(
+        width: digitWidth * (maxDigits - 1),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center, // 보이는 자리만 중앙 정렬
+          children: [
+            // 십의 자리와 일의 자리만 표시 (백의 자리 공간은 양쪽에 분배)
+            for (int i = 1; i < maxDigits; i++)
+              SizedBox(
+                width: digitWidth,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    padded[i],
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w600,
+                      color: widget.isDarkMode ? Colors.white : Colors.black87,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    } else {
+      // 일반적인 경우 (3자리 모두 표시)
+      return SizedBox(
+        width: digitWidth * maxDigits,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center, // 중앙 정렬
+          children: List.generate(maxDigits, (i) {
+            return SizedBox(
+              width: digitWidth,
+              child: Align(
+                alignment: Alignment.center,
+                child: Text(
+                  padded[i],
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w600,
+                    color: widget.isDarkMode ? Colors.white : Colors.black87,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+    }
+  }
+
+  Widget _buildColon() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4), // 간격 축소
+      child: Text(
+        ':',
+        style: TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.w600,
+          color: widget.isDarkMode ? Colors.white : Colors.black87,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIdleTimer() {
+    final timerText = _getIdleTimerText();
+    final parts = timerText.split(':');
+
+    if (parts.length == 3) {
+      // hh:mm:ss 형식 - 자리수 단위 구성, 왼쪽정렬 고정, 간격 축소
+      final hours = int.tryParse(parts[0]) ?? 0;
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 시: 3자리 대응, 100 미만일 때 백의 자리는 숨김
+          _buildFixedDigits(
+            parts[0].padLeft(3, '0'),
+            3,
+            hideFirstIfZero: hours < 100,
+          ),
+          _buildColon(),
+          _buildFixedDigits(parts[1].padLeft(2, '0'), 2),
+          _buildColon(),
+          _buildFixedDigits(parts[2].padLeft(2, '0'), 2),
+        ],
+      );
+    } else {
+      // 기타 형식 (00:00:00 등)
+      return Text(
+        timerText,
+        style: TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.w600,
+          color: widget.isDarkMode ? Colors.white : Colors.black87,
+          fontFamily: 'monospace',
+        ),
+        textAlign: TextAlign.center,
+      );
+    }
+  }
+
   String _getCountdownText() {
     if (_isWorkoutMode) {
-      // 운동 중일 때는 스탑워치 형식
-      return '${_workoutHours.toString().padLeft(2, '0')}:${_workoutMinutes.toString().padLeft(2, '0')}:${_workoutSeconds.toString().padLeft(2, '0')}';
+      // 운동 중: mm:ss:cc (centiseconds) - 각 세그먼트 고정 폭
+      final totalMs =
+          (_workoutHours * 3600 + _workoutMinutes * 60 + _workoutSeconds) *
+              1000 +
+          (_workoutCentiseconds * 10);
+      final mm = (totalMs ~/ 60000).toString().padLeft(2, '0');
+      final ss = ((totalMs % 60000) ~/ 1000).toString().padLeft(2, '0');
+      final cc = ((totalMs % 1000) ~/ 10).toString().padLeft(2, '0');
+      // 각 세그먼트를 고정 폭으로 만들기 위해 공백 추가
+      return '${mm.padRight(3)}:${ss.padRight(3)}:${cc.padRight(3)}';
     } else {
       // 운동 전에는 다음 운동예정일까지 카운트다운
       if (_nextWorkoutDate == null) {
@@ -1598,6 +1760,8 @@ class _HomeScreenState extends State<HomeScreen>
     return '$month/$day($weekday)';
   }
 
+  // _getWeekdayChipText() removed on user's request to revert header design
+
   void _calculateCountdown() {
     if (_nextWorkoutDate == null) return;
 
@@ -1667,21 +1831,22 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _startWorkoutTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
       if (!_isPaused && _workoutStartTime != null) {
-        // 시작 시간을 기준으로 현재 시간과의 차이를 계산
         final now = DateTime.now();
         final elapsed = now.difference(_workoutStartTime!);
 
-        // 일시정지 시간을 제외한 실제 운동 시간 계산
-        final totalPausedSeconds = _totalPausedSeconds;
-        final actualElapsedSeconds = elapsed.inSeconds - totalPausedSeconds;
+        // 일시정지 시간을 밀리초 단위로 제외
+        final pausedMs = _totalPausedSeconds * 1000 + _totalPausedMs;
+        final actualElapsedMs = elapsed.inMilliseconds - pausedMs;
 
-        if (actualElapsedSeconds >= 0) {
+        if (actualElapsedMs >= 0) {
+          final totalSeconds = actualElapsedMs ~/ 1000;
           setState(() {
-            _workoutHours = actualElapsedSeconds ~/ 3600;
-            _workoutMinutes = (actualElapsedSeconds % 3600) ~/ 60;
-            _workoutSeconds = actualElapsedSeconds % 60;
+            _workoutHours = totalSeconds ~/ 3600;
+            _workoutMinutes = (totalSeconds % 3600) ~/ 60;
+            _workoutSeconds = totalSeconds % 60;
+            _workoutCentiseconds = (actualElapsedMs % 1000) ~/ 10;
           });
           _notifyWorkoutStatus();
         }
@@ -1703,6 +1868,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _startWorkoutMode() async {
+    HapticFeedback.mediumImpact();
     final startTime = DateTime.now();
 
     setState(() {
@@ -1714,8 +1880,10 @@ class _HomeScreenState extends State<HomeScreen>
       _workoutHours = 0;
       _workoutMinutes = 0;
       _workoutSeconds = 0;
+      _workoutCentiseconds = 0;
       _workoutStartTime = startTime;
       _totalPausedSeconds = 0; // 일시정지 시간 초기화
+      _totalPausedMs = 0;
       _startWorkoutTimer();
 
       // 그라데이션 애니메이션 시작
@@ -1737,6 +1905,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _pauseWorkout() async {
+    HapticFeedback.selectionClick();
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
 
@@ -1758,8 +1927,9 @@ class _HomeScreenState extends State<HomeScreen>
         final pausedAt = prefs.getString('workout_paused_at');
         if (pausedAt != null) {
           final pausedTime = DateTime.parse(pausedAt);
-          final pausedDuration = now.difference(pausedTime).inSeconds;
-          _totalPausedSeconds += pausedDuration;
+          final pausedDuration = now.difference(pausedTime);
+          _totalPausedSeconds += pausedDuration.inSeconds;
+          _totalPausedMs += pausedDuration.inMilliseconds % 1000;
 
           prefs.setInt('total_paused_seconds', _totalPausedSeconds);
           prefs.remove('workout_paused_at');
@@ -1772,10 +1942,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _finishWorkout() {
+    HapticFeedback.lightImpact();
     _showFinishDialog();
   }
 
   void _endWorkout() async {
+    HapticFeedback.heavyImpact();
     // SharedPreferences에서 운동 상태 삭제
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('workout_start_time');
@@ -1877,7 +2049,11 @@ class _HomeScreenState extends State<HomeScreen>
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              // 달력 팝업이 닫힐 때 타이머 재시작하여 홈탭 반영
+                              _startCountdownTimer();
+                            },
                             icon: const Icon(Icons.close, size: 20),
                             style: IconButton.styleFrom(
                               backgroundColor: Colors.grey[300],
@@ -1904,6 +2080,11 @@ class _HomeScreenState extends State<HomeScreen>
                                 return [];
                               },
                               startingDayOfWeek: StartingDayOfWeek.sunday,
+                              locale: widget.language == '한국어'
+                                  ? 'ko_KR'
+                                  : widget.language == '日本語'
+                                  ? 'ja_JP'
+                                  : 'en_US',
                               calendarStyle: CalendarStyle(
                                 outsideDaysVisible: false,
                                 weekendTextStyle: TextStyle(
@@ -2677,6 +2858,10 @@ class _HomeScreenState extends State<HomeScreen>
           child: Container(
             width: MediaQuery.of(context).size.width * 0.9,
             padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2987,6 +3172,10 @@ class _HomeScreenState extends State<HomeScreen>
           child: Container(
             width: MediaQuery.of(context).size.width * 0.9,
             padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: widget.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -3026,9 +3215,15 @@ class _HomeScreenState extends State<HomeScreen>
                   width: double.infinity,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: widget.isDarkMode
+                        ? const Color(0xFF2D2D2D)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFF3F3F3)),
+                    border: Border.all(
+                      color: widget.isDarkMode
+                          ? const Color(0xFF404040)
+                          : const Color(0xFFF3F3F3),
+                    ),
                   ),
                   child: ElevatedButton(
                     onPressed: () {
@@ -3046,7 +3241,9 @@ class _HomeScreenState extends State<HomeScreen>
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: widget.isDarkMode
+                            ? Colors.white
+                            : Colors.black87,
                       ),
                     ),
                   ),
@@ -3196,9 +3393,15 @@ class _HomeScreenState extends State<HomeScreen>
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF),
+                        color: widget.isDarkMode
+                            ? const Color(0xFF1E1E1E)
+                            : const Color(0xFFFFFFFF),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFF3F3F3)),
+                        border: Border.all(
+                          color: widget.isDarkMode
+                              ? const Color(0xFF404040)
+                              : const Color(0xFFF3F3F3),
+                        ),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -3209,7 +3412,9 @@ class _HomeScreenState extends State<HomeScreen>
                                 : '今月の運動時間',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: widget.isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                               fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
@@ -3219,7 +3424,9 @@ class _HomeScreenState extends State<HomeScreen>
                             _getMonthlyWorkoutTimeText(),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[800],
+                              color: widget.isDarkMode
+                                  ? Colors.white
+                                  : Colors.grey[800],
                               fontWeight: FontWeight.w400,
                               fontFamily: 'Hiragino Sans',
                             ),
@@ -3235,9 +3442,15 @@ class _HomeScreenState extends State<HomeScreen>
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF),
+                        color: widget.isDarkMode
+                            ? const Color(0xFF1E1E1E)
+                            : const Color(0xFFFFFFFF),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFF3F3F3)),
+                        border: Border.all(
+                          color: widget.isDarkMode
+                              ? const Color(0xFF404040)
+                              : const Color(0xFFF3F3F3),
+                        ),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -3246,7 +3459,9 @@ class _HomeScreenState extends State<HomeScreen>
                             widget.language == '한국어' ? '운동주기' : '運動ペース',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: widget.isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                               fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
@@ -3256,7 +3471,9 @@ class _HomeScreenState extends State<HomeScreen>
                             _getWorkoutPaceText(),
                             style: TextStyle(
                               fontSize: 12,
-                              color: _getWorkoutPaceColor(),
+                              color: widget.isDarkMode
+                                  ? Colors.white
+                                  : _getWorkoutPaceColor(),
                               fontWeight: FontWeight.w400,
                               fontFamily: 'Hiragino Sans',
                             ),
@@ -3344,18 +3561,12 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        _isWorkoutMode
-                            ? _getCountdownText()
-                            : _getIdleTimerText(),
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w600,
-                          color: widget.isDarkMode
-                              ? Colors.white
-                              : Colors.grey[800],
-                          letterSpacing: 2,
-                        ),
+                      Container(
+                        width: 400, // 3자리수 고려한 충분한 고정 폭
+                        alignment: Alignment.center, // 중앙 정렬
+                        child: _isWorkoutMode
+                            ? _buildWorkoutTimer()
+                            : _buildIdleTimer(),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -5104,10 +5315,11 @@ class _LogScreenState extends State<LogScreen>
     final minutes = (totalSeconds % 3600) ~/ 60;
     final seconds = totalSeconds % 60;
 
+    // 로그탭에서는 밀리초 없이 분 단위로만 표시
     if (hours > 0) {
-      return '$hours時間$minutes分$seconds秒';
+      return '$hours時間$minutes分';
     } else {
-      return '$minutes分$seconds秒';
+      return '$minutes分';
     }
   }
 
@@ -8575,59 +8787,59 @@ class WeightGraphPainter extends CustomPainter {
       }
     }
 
-    // Y축 라벨 그리기 (최소, 최대값)
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.right,
-    );
+    // Y축 라벨 그리기 (최소, 최대값) - TextPainter 대신 간단한 텍스트 표시
+    // 최대값과 최소값은 주석 처리하여 오류 방지
+    // final textPainter = TextPainter(
+    //   textAlign: TextAlign.right,
+    // );
+    //
+    // // 최대값
+    // textPainter.text = TextSpan(
+    //   text: maxWeight.toStringAsFixed(1),
+    //   style: TextStyle(
+    //     color: isDark ? Colors.grey[400] : Colors.grey[600],
+    //     fontSize: 10,
+    //   ),
+    // );
+    // textPainter.layout();
+    // textPainter.paint(canvas, Offset(0, topPadding - textPainter.height / 2));
+    //
+    // // 최소값
+    // textPainter.text = TextSpan(
+    //   text: minWeight.toStringAsFixed(1),
+    //   style: TextStyle(
+    //     color: isDark ? Colors.grey[400] : Colors.grey[600],
+    //     fontSize: 10,
+    //   ),
+    // );
+    // textPainter.layout();
+    // textPainter.paint(
+    //   canvas,
+    //   Offset(0, topPadding + graphHeight - textPainter.height / 2),
+    // );
 
-    // 최대값
-    textPainter.text = TextSpan(
-      text: maxWeight.toStringAsFixed(1),
-      style: TextStyle(
-        color: isDark ? Colors.grey[400] : Colors.grey[600],
-        fontSize: 10,
-      ),
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, Offset(0, topPadding - textPainter.height / 2));
-
-    // 최소값
-    textPainter.text = TextSpan(
-      text: minWeight.toStringAsFixed(1),
-      style: TextStyle(
-        color: isDark ? Colors.grey[400] : Colors.grey[600],
-        fontSize: 10,
-      ),
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(0, topPadding + graphHeight - textPainter.height / 2),
-    );
-
-    // X축 날짜 라벨 그리기
-    for (int i = 0; i < records.length; i++) {
-      final x =
-          leftPadding +
-          (graphWidth / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
-      final date = records[i].date;
-      final dateText =
-          '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
-
-      textPainter.text = TextSpan(
-        text: dateText,
-        style: TextStyle(
-          color: isDark ? Colors.grey[400] : Colors.grey[600],
-          fontSize: 10,
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x - textPainter.width / 2, topPadding + graphHeight + 5),
-      );
-    }
+    // X축 날짜 라벨 그리기 - TextPainter 대신 간단한 텍스트 표시
+    // for (int i = 0; i < records.length; i++) {
+    //   final x =
+    //       leftPadding +
+    //       (graphWidth / (records.length - 1 > 0 ? records.length - 1 : 1)) * i;
+    //   final date = records[i].date;
+    //   final dateText =
+    //       '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+    //
+    //   textPainter.text = TextSpan(
+    //     text: dateText,
+    //     style: TextStyle(
+    //       color: isDark ? Colors.grey[400] : Colors.grey[600],
+    //       fontSize: 10,
+    //     ),
+    //   );
+    //   textPainter.layout();
+    //   textPainter.paint(
+    //     canvas,
+    //     Offset(x - textPainter.width / 2, topPadding + graphHeight + 5),
+    //   );
+    // }
   }
 
   @override
